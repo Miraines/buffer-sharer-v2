@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Цветовые переменные для темы */
+:root {
+  --bg-primary: #030712;
+  --bg-secondary: #111827;
+  --bg-card: #1f2937;
+  --bg-input: #1f2937;
+  --bg-hover: #374151;
+  --border-color: #374151;
+  --border-hover: #4b5563;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+}
+
+/* Светлая тема */
+html.light {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: #e2e8f0;
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+  }
+
+  body {
+    @apply m-0 font-sans;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2;
+    --tw-ring-offset-color: var(--bg-secondary);
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-500 text-white focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+    --tw-ring-color: var(--border-hover);
+  }
+  .btn-secondary:hover {
+    background-color: var(--border-hover);
+  }
+
+  .btn-success {
+    @apply bg-emerald-600 hover:bg-emerald-500 text-white focus:ring-emerald-500;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-500 text-white focus:ring-red-500;
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           transition-all duration-200;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+  .input::placeholder {
+    color: var(--text-muted);
+  }
+  .input:hover {
+    border-color: var(--border-hover);
+  }
+
+  .card {
+    @apply backdrop-blur-sm rounded-xl p-6;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+  }
+
+  html.light .card {
+    @apply shadow-sm;
+  }
+
+  .status-dot {
+    @apply w-2.5 h-2.5 rounded-full;
+  }
+
+  .status-connected {
+    @apply bg-emerald-500 shadow-lg shadow-emerald-500/50;
+  }
+
+  .status-disconnected {
+    @apply bg-red-500 shadow-lg shadow-red-500/50;
+  }
+
+  /* Переключатель темы */
+  .theme-switch {
+    @apply relative w-14 h-7 rounded-full cursor-pointer transition-colors duration-300;
+    background-color: var(--border-color);
+  }
+
+  html.light .theme-switch {
+    @apply bg-primary-500;
+  }
+
+  .theme-switch::after {
+    content: '';
+    @apply absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition-transform duration-300;
+  }
+
+  html.light .theme-switch::after {
+    transform: translateX(1.75rem);
+  }
+}
+
+/* Переопределения для sidebar и панелей - используем CSS variables */
+.sidebar-bg {
+  background-color: var(--bg-secondary);
+}
+
+.panel-bg {
+  background-color: var(--bg-primary);
+}
+
+.card-bg {
+  background-color: var(--bg-card);
+}
+
+.input-bg {
+  background-color: var(--bg-input);
+}
+
+.border-themed {
+  border-color: var(--border-color);
+}
+
+.text-themed-primary {
+  color: var(--text-primary);
+}
+
+.text-themed-secondary {
+  color: var(--text-secondary);
+}
+
+.text-themed-muted {
+  color: var(--text-muted);
+}
+
+.hover-bg:hover {
+  background-color: var(--bg-hover);
+}
+
+#app {
+  @apply min-h-screen;
+}
