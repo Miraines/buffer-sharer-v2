@@ -20,9 +20,10 @@ var isWindows = runtime.GOOS == "windows"
 type Action string
 
 const (
-	ActionToggleInputMode Action = "toggle_input_mode"
-	ActionTakeScreenshot  Action = "take_screenshot"
-	ActionPasteFromBuffer Action = "paste_from_buffer"
+	ActionToggleInputMode   Action = "toggle_input_mode"
+	ActionTakeScreenshot    Action = "take_screenshot"
+	ActionPasteFromBuffer   Action = "paste_from_buffer"
+	ActionToggleInvisibility Action = "toggle_invisibility"
 )
 
 // Handler is a function called when a hotkey is triggered

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
-  import { GetSettings, GetConnectionStatus, GetStatistics, CheckPermissions } from '../wailsjs/go/main/App';
+  import { GetSettings, GetConnectionStatus, GetStatistics, CheckPermissions, GetInvisibilityStatus } from '../wailsjs/go/main/App';
   import Sidebar from './lib/Sidebar.svelte';
   import ConnectionPanel from './lib/ConnectionPanel.svelte';
   import ScreenshotView from './lib/ScreenshotView.svelte';
@@ -15,6 +15,7 @@
   let isConnected = false;
   let roomCode = '';
   let role = 'controller';
+  let isInvisible = false;
 
   // Toast уведомления
   let toasts: Array<{id: number, type: 'success' | 'error' | 'info' | 'warning', message: string}> = [];
@@ -47,6 +48,7 @@
     hotkeyToggle: 'Ctrl+Shift+J',
     hotkeyScreenshot: 'Ctrl+Shift+S',
     hotkeyPaste: 'Ctrl+Shift+V',
+    hotkeyInvisibility: 'Ctrl+Shift+I',
     autoConnect: false,
     lastRole: 'controller',
     lastRoomCode: '',
@@ -137,6 +139,7 @@
         hotkeyToggle: s.hotkeyToggle,
         hotkeyScreenshot: s.hotkeyScreenshot,
         hotkeyPaste: s.hotkeyPaste,
+        hotkeyInvisibility: s.hotkeyInvisibility || 'Ctrl+Shift+I',
         autoConnect: s.autoConnect || false,
         lastRole: s.lastRole || 'controller',
         lastRoomCode: s.lastRoomCode || '',
@@ -161,6 +164,14 @@
       role = status.role || settings.lastRole || 'controller';
     } catch (e) {
       console.error('Failed to get connection status:', e);
+    }
+
+    // Get initial invisibility status
+    try {
+      const invStatus = await GetInvisibilityStatus();
+      isInvisible = invStatus.enabled;
+    } catch (e) {
+      console.error('Failed to get invisibility status:', e);
     }
 
     // Listen for log events from Go
@@ -232,6 +243,18 @@
       }
     });
 
+    // Listen for invisibility changes
+    EventsOn('invisibilityChanged', (enabled: boolean) => {
+      isInvisible = enabled;
+      if (enabled) {
+        addLog('info', 'Режим невидимости ВКЛЮЧЁН');
+        showToast('success', 'Режим невидимости включён');
+      } else {
+        addLog('info', 'Режим невидимости ВЫКЛЮЧЕН');
+        showToast('info', 'Режим невидимости выключен');
+      }
+    });
+
     // Интервал обновления статистики
     const statsInterval = setInterval(updateStatistics, 5000);
 
@@ -255,10 +278,11 @@
     EventsOff('clipboardReceived');
     EventsOff('permissionsRequired');
     EventsOff('permissionsChanged');
+    EventsOff('invisibilityChanged');
   });
 </script>
 
-<div class="flex h-screen bg-dark-950">
+<div class="app-container">
   <!-- Toast уведомления -->
   <Toast bind:toasts />
 
@@ -275,6 +299,7 @@
   <Sidebar
     bind:currentView
     {isConnected}
+    {isInvisible}
     {roomCode}
     {statistics}
     currentTheme={settings.theme}
@@ -282,13 +307,14 @@
   />
 
   <!-- Main Content -->
-  <main class="flex-1 overflow-hidden">
+  <main class="main-content">
     {#if currentView === 'connection'}
       <ConnectionPanel
         bind:isConnected
         bind:roomCode
         bind:role
         {settings}
+        {isInvisible}
         on:log={(e) => addLog(e.detail.level, e.detail.message)}
         on:toast={(e) => showToast(e.detail.type, e.detail.message)}
       />
@@ -311,3 +337,17 @@
     {/if}
   </main>
 </div>
+
+<style>
+  .app-container {
+    display: flex;
+    height: 100vh;
+    background-color: var(--bg-primary);
+  }
+
+  .main-content {
+    flex: 1;
+    overflow: hidden;
+    background-color: var(--bg-primary);
+  }
+</style>

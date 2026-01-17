@@ -28,6 +28,8 @@ export function GetHotkeys():Promise<Record<string, string>>;
 
 export function GetInputMode():Promise<boolean>;
 
+export function GetInvisibilityStatus():Promise<Record<string, any>>;
+
 export function GetKeyboardBuffer():Promise<string>;
 
 export function GetPermissions():Promise<Array<main.PermissionInfoJS>>;
@@ -45,6 +47,8 @@ export function GetSettings():Promise<main.Settings>;
 export function GetStatistics():Promise<main.Statistics>;
 
 export function GetTextHistory():Promise<Array<main.TextHistoryEntry>>;
+
+export function IsInvisibilitySupported():Promise<boolean>;
 
 export function OpenPermissionSettings(arg1:string):Promise<void>;
 
@@ -70,10 +74,14 @@ export function SendText(arg1:string):Promise<void>;
 
 export function SetInputMode(arg1:boolean):Promise<boolean>;
 
+export function SetInvisibility(arg1:boolean):Promise<boolean>;
+
 export function SetScreenshotSaveDir(arg1:string):Promise<void>;
 
 export function StartPermissionPolling(arg1:number):Promise<void>;
 
 export function ToggleInputMode():Promise<boolean>;
+
+export function ToggleInvisibility():Promise<boolean>;
 
 export function TypeBuffer():Promise<void>;

@@ -54,6 +54,10 @@ export function GetInputMode() {
   return window['go']['main']['App']['GetInputMode']();
 }
 
+export function GetInvisibilityStatus() {
+  return window['go']['main']['App']['GetInvisibilityStatus']();
+}
+
 export function GetKeyboardBuffer() {
   return window['go']['main']['App']['GetKeyboardBuffer']();
 }
@@ -88,6 +92,10 @@ export function GetStatistics() {
 
 export function GetTextHistory() {
   return window['go']['main']['App']['GetTextHistory']();
+}
+
+export function IsInvisibilitySupported() {
+  return window['go']['main']['App']['IsInvisibilitySupported']();
 }
 
 export function OpenPermissionSettings(arg1) {
@@ -138,6 +146,10 @@ export function SetInputMode(arg1) {
   return window['go']['main']['App']['SetInputMode'](arg1);
 }
 
+export function SetInvisibility(arg1) {
+  return window['go']['main']['App']['SetInvisibility'](arg1);
+}
+
 export function SetScreenshotSaveDir(arg1) {
   return window['go']['main']['App']['SetScreenshotSaveDir'](arg1);
 }
@@ -148,6 +160,10 @@ export function StartPermissionPolling(arg1) {
 
 export function ToggleInputMode() {
   return window['go']['main']['App']['ToggleInputMode']();
+}
+
+export function ToggleInvisibility() {
+  return window['go']['main']['App']['ToggleInvisibility']();
 }
 
 export function TypeBuffer() {

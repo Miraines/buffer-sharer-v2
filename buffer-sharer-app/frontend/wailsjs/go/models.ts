@@ -67,6 +67,7 @@ export namespace main {
 	    hotkeyToggle: string;
 	    hotkeyScreenshot: string;
 	    hotkeyPaste: string;
+	    hotkeyInvisibility: string;
 	    autoConnect: boolean;
 	    lastRole: string;
 	    lastRoomCode: string;
@@ -89,6 +90,7 @@ export namespace main {
 	        this.hotkeyToggle = source["hotkeyToggle"];
 	        this.hotkeyScreenshot = source["hotkeyScreenshot"];
 	        this.hotkeyPaste = source["hotkeyPaste"];
+	        this.hotkeyInvisibility = source["hotkeyInvisibility"];
 	        this.autoConnect = source["autoConnect"];
 	        this.lastRole = source["lastRole"];
 	        this.lastRoomCode = source["lastRoomCode"];

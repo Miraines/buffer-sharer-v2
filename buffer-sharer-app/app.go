@@ -19,6 +19,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"buffer-sharer-app/internal/hotkey"
+	"buffer-sharer-app/internal/invisibility"
 	"buffer-sharer-app/internal/keyboard"
 	"buffer-sharer-app/internal/logging"
 	"buffer-sharer-app/internal/network"
@@ -44,6 +45,7 @@ type Settings struct {
 	HotkeyToggle       string `json:"hotkeyToggle"`
 	HotkeyScreenshot   string `json:"hotkeyScreenshot"`
 	HotkeyPaste        string `json:"hotkeyPaste"`
+	HotkeyInvisibility string `json:"hotkeyInvisibility"` // Hotkey for toggling invisibility mode
 	// Новые настройки
 	AutoConnect            bool   `json:"autoConnect"`
 	LastRole               string `json:"lastRole"`
@@ -95,11 +97,12 @@ type App struct {
 	role      string
 
 	// Services
-	screenshotService  *screenshot.CaptureService
-	keyboardHandler    *keyboard.Handler
-	keyInterceptor     *keyboard.KeyInterceptor
-	permissionsManager *permissions.Manager
-	hotkeyManager      *hotkey.Manager
+	screenshotService   *screenshot.CaptureService
+	keyboardHandler     *keyboard.Handler
+	keyInterceptor      *keyboard.KeyInterceptor
+	permissionsManager  *permissions.Manager
+	hotkeyManager       *hotkey.Manager
+	invisibilityManager *invisibility.Manager
 
 	// Settings
 	settings Settings
@@ -140,6 +143,7 @@ func NewApp() *App {
 			HotkeyToggle:       hotkeyToggle,
 			HotkeyScreenshot:   hotkeyScreenshot,
 			HotkeyPaste:        hotkeyPaste,
+			HotkeyInvisibility: "Ctrl+Shift+I", // Default invisibility hotkey
 			AutoConnect:        false,
 			LastRole:           "controller",
 			SoundEnabled:       true,
@@ -205,6 +209,9 @@ func (a *App) startup(ctx context.Context) {
 
 	// Initialize permissions manager
 	a.permissionsManager = permissions.NewManager()
+
+	// Initialize invisibility manager
+	a.invisibilityManager = invisibility.NewManager()
 
 	// NOTE: We do NOT request permissions automatically on startup!
 	// The user will see the permissions modal and can click buttons to:
@@ -347,6 +354,15 @@ func (a *App) initHotkeyManager() {
 		// Screenshot functionality can be added here if needed
 	})
 
+	a.hotkeyManager.RegisterHandler(hotkey.ActionToggleInvisibility, func() {
+		a.log("debug", "Hotkey triggered: toggle invisibility")
+		if !a.sendEvent(func() {
+			a.ToggleInvisibility()
+		}) {
+			a.log("warn", "Event channel full or closed, hotkey action skipped")
+		}
+	})
+
 	// Register hotkeys from settings
 	a.registerHotkeysFromSettings()
 
@@ -400,6 +416,15 @@ func (a *App) registerHotkeysFromSettings() {
 			a.log("error", "Failed to register screenshot hotkey '%s': %v", settings.HotkeyScreenshot, err)
 		} else {
 			a.log("info", "Registered hotkey for screenshot: %s", settings.HotkeyScreenshot)
+		}
+	}
+
+	// Register invisibility hotkey
+	if settings.HotkeyInvisibility != "" {
+		if err := a.hotkeyManager.Register(hotkey.ActionToggleInvisibility, settings.HotkeyInvisibility); err != nil {
+			a.log("error", "Failed to register invisibility hotkey '%s': %v", settings.HotkeyInvisibility, err)
+		} else {
+			a.log("info", "Registered hotkey for invisibility: %s", settings.HotkeyInvisibility)
 		}
 	}
 }
@@ -902,9 +927,10 @@ func (a *App) GetHotkeys() map[string]string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return map[string]string{
-		"toggle":     a.settings.HotkeyToggle,
-		"paste":      a.settings.HotkeyPaste,
-		"screenshot": a.settings.HotkeyScreenshot,
+		"toggle":       a.settings.HotkeyToggle,
+		"paste":        a.settings.HotkeyPaste,
+		"screenshot":   a.settings.HotkeyScreenshot,
+		"invisibility": a.settings.HotkeyInvisibility,
 	}
 }
 
@@ -930,7 +956,8 @@ func (a *App) SaveSettings(settings Settings) {
 	if a.hotkeyManager != nil {
 		hotkeysChanged := oldSettings.HotkeyToggle != settings.HotkeyToggle ||
 			oldSettings.HotkeyPaste != settings.HotkeyPaste ||
-			oldSettings.HotkeyScreenshot != settings.HotkeyScreenshot
+			oldSettings.HotkeyScreenshot != settings.HotkeyScreenshot ||
+			oldSettings.HotkeyInvisibility != settings.HotkeyInvisibility
 
 		if hotkeysChanged {
 			a.log("info", "Hotkeys changed, re-registering...")
@@ -1631,4 +1658,70 @@ func (a *App) SetScreenshotSaveDir(dir string) error {
 	a.settings.ScreenshotSaveDir = dir
 	a.log("info", "Директория для скриншотов установлена: %s", dir)
 	return nil
+}
+
+// =============== МЕТОДЫ ДЛЯ РЕЖИМА НЕВИДИМОСТИ ===============
+
+// ToggleInvisibility toggles window invisibility mode and returns the new state
+func (a *App) ToggleInvisibility() bool {
+	if a.invisibilityManager == nil {
+		a.log("error", "Invisibility manager not initialized")
+		return false
+	}
+
+	newState := a.invisibilityManager.Toggle()
+
+	if newState {
+		a.log("info", "Режим невидимости ВКЛЮЧЁН - окно скрыто от захвата экрана")
+	} else {
+		a.log("info", "Режим невидимости ВЫКЛЮЧЕН - окно видно при захвате экрана")
+	}
+
+	// Emit event to frontend
+	runtime.EventsEmit(a.ctx, "invisibilityChanged", newState)
+
+	return newState
+}
+
+// SetInvisibility sets window invisibility mode explicitly
+func (a *App) SetInvisibility(enabled bool) bool {
+	if a.invisibilityManager == nil {
+		return false
+	}
+
+	a.invisibilityManager.SetEnabled(enabled)
+
+	if enabled {
+		a.log("info", "Режим невидимости ВКЛЮЧЁН")
+	} else {
+		a.log("info", "Режим невидимости ВЫКЛЮЧЕН")
+	}
+
+	runtime.EventsEmit(a.ctx, "invisibilityChanged", enabled)
+	return enabled
+}
+
+// GetInvisibilityStatus returns current invisibility status
+func (a *App) GetInvisibilityStatus() map[string]interface{} {
+	if a.invisibilityManager == nil {
+		return map[string]interface{}{
+			"enabled":     false,
+			"supported":   false,
+			"windowCount": 0,
+		}
+	}
+
+	return map[string]interface{}{
+		"enabled":     a.invisibilityManager.IsEnabled(),
+		"supported":   a.invisibilityManager.IsSupported(),
+		"windowCount": a.invisibilityManager.GetWindowCount(),
+	}
+}
+
+// IsInvisibilitySupported returns whether invisibility mode is supported on this platform
+func (a *App) IsInvisibilitySupported() bool {
+	if a.invisibilityManager == nil {
+		return false
+	}
+	return a.invisibilityManager.IsSupported()
 }

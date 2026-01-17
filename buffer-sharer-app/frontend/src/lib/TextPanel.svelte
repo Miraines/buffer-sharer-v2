@@ -145,121 +145,145 @@
   $: progressPercent = bufferLength > 0 ? Math.round((bufferPosition / bufferLength) * 100) : 0;
 </script>
 
-<div class="h-full p-8 overflow-auto">
-  <div class="max-w-3xl mx-auto">
-    <h2 class="text-2xl font-bold text-white mb-2">Текст</h2>
-    <p class="text-gray-400 mb-8">
-      {role === 'controller'
-        ? 'Отправьте текст для ввода на клиенте'
-        : 'Управление буфером клавиатуры'}
-    </p>
+<div class="panel">
+  <div class="panel-content">
+    <div class="panel-header">
+      <h1 class="panel-title">Текст</h1>
+      <p class="panel-subtitle">
+        {role === 'controller'
+          ? 'Отправьте текст для ввода на клиенте'
+          : 'Управление буфером клавиатуры'}
+      </p>
+    </div>
 
     {#if !isConnected}
-      <div class="card flex flex-col items-center justify-center py-20">
-        <span class="text-6xl mb-4 opacity-50">📝</span>
-        <p class="text-gray-400 text-lg">Сначала подключитесь к комнате</p>
+      <div class="empty-state card">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="4 7 4 4 20 4 20 7"/>
+            <line x1="9" y1="20" x2="15" y2="20"/>
+            <line x1="12" y1="4" x2="12" y2="20"/>
+          </svg>
+        </div>
+        <p class="empty-title">Сначала подключитесь к комнате</p>
       </div>
     {:else}
       <!-- Input Mode Status (for client) -->
       {#if role === 'client'}
-        <div class="card mb-6 {inputMode ? 'border-green-500/30 bg-green-500/5' : 'border-dark-600'}">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-full {inputMode ? 'bg-green-500/20' : 'bg-dark-700'} flex items-center justify-center">
-                <span class="text-2xl">{inputMode ? '⌨️' : '💤'}</span>
-              </div>
-              <div>
-                <p class="font-semibold {inputMode ? 'text-green-400' : 'text-gray-400'}">
-                  Режим ввода {inputMode ? 'АКТИВЕН' : 'ВЫКЛЮЧЕН'}
-                </p>
-                <p class="text-sm text-gray-500">
-                  {#if inputMode}
-                    {#if bufferRemaining > 0}
-                      Нажимайте любые клавиши для ввода текста
-                    {:else}
-                      Буфер пуст - дождитесь текста от контроллера
-                    {/if}
+        <div class="card mode-card {inputMode ? 'active' : ''}">
+          <div class="mode-content">
+            <div class="mode-icon {inputMode ? 'active' : ''}">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                {#if inputMode}
+                  <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
+                  <path d="M6 8h.001"/>
+                  <path d="M10 8h.001"/>
+                  <path d="M14 8h.001"/>
+                  <path d="M18 8h.001"/>
+                  <path d="M8 12h.001"/>
+                  <path d="M12 12h.001"/>
+                  <path d="M16 12h.001"/>
+                  <path d="M7 16h10"/>
+                {:else}
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                {/if}
+              </svg>
+            </div>
+            <div class="mode-info">
+              <span class="mode-title {inputMode ? 'active' : ''}">
+                Режим ввода {inputMode ? 'АКТИВЕН' : 'ВЫКЛЮЧЕН'}
+              </span>
+              <span class="mode-subtitle">
+                {#if inputMode}
+                  {#if bufferRemaining > 0}
+                    Нажимайте любые клавиши для ввода текста
                   {:else}
-                    Текст сохраняется в буфер. Нажмите {hotkeyToggle} для активации
+                    Буфер пуст - дождитесь текста от контроллера
                   {/if}
-                </p>
-              </div>
+                {:else}
+                  Текст сохраняется в буфер. Нажмите {hotkeyToggle} для активации
+                {/if}
+              </span>
             </div>
             <button
-              class="btn {inputMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'btn-secondary'}"
+              class="btn {inputMode ? 'btn-success' : 'btn-secondary'}"
               on:click={toggleInputModeHandler}
             >
-              {inputMode ? '✓ Активен' : 'Включить'}
+              {inputMode ? 'Активен' : 'Включить'}
             </button>
           </div>
 
           {#if inputMode && bufferRemaining > 0}
-            <div class="mt-4 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-              <div class="flex items-center justify-between mb-2">
-                <p class="text-sm text-green-400">
-                  Прогресс: {bufferPosition} / {bufferLength} символов
-                </p>
-                <span class="text-sm text-green-400">{progressPercent}%</span>
+            <div class="progress-section">
+              <div class="progress-header">
+                <span>Прогресс: {bufferPosition} / {bufferLength} символов</span>
+                <span>{progressPercent}%</span>
               </div>
-              <div class="w-full bg-dark-700 rounded-full h-2">
-                <div
-                  class="bg-green-500 h-2 rounded-full transition-all duration-200"
-                  style="width: {progressPercent}%"
-                ></div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {progressPercent}%"></div>
               </div>
-              <p class="text-xs text-gray-500 mt-2">
-                💡 Нажимайте любые клавиши - они будут заменены на текст из буфера
-              </p>
+              <p class="progress-hint">Нажимайте любые клавиши - они будут заменены на текст из буфера</p>
             </div>
           {/if}
         </div>
 
         <!-- Received Text Display -->
         {#if receivedText}
-          <div class="card mb-6">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold text-white">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">
                 {inputMode ? 'Оставшийся текст в буфере' : 'Полученный текст'}
-              </h3>
-              <span class="text-sm text-gray-500">{bufferRemaining} символов осталось</span>
+              </h2>
+              <span class="card-badge">{bufferRemaining} символов осталось</span>
             </div>
-            <div class="bg-dark-900 rounded-lg p-4 font-mono text-sm text-gray-300 max-h-40 overflow-auto whitespace-pre-wrap">
+            <div class="text-display copyable">
               {#if inputMode}
-                <span class="text-gray-600">{receivedText.substring(0, bufferPosition)}</span><span class="text-green-400 border-l-2 border-green-400">{receivedText.substring(bufferPosition)}</span>
+                <span class="text-done">{receivedText.substring(0, bufferPosition)}</span><span class="text-remaining">{receivedText.substring(bufferPosition)}</span>
               {:else}
                 {receivedText}
               {/if}
             </div>
-            {#if !inputMode}
-              <div class="flex gap-4 mt-4">
+            <div class="card-actions">
+              {#if !inputMode}
                 <button class="btn btn-secondary" on:click={clearBuffer}>
-                  🗑️ Очистить буфер
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                  <span>Очистить буфер</span>
                 </button>
-              </div>
-            {:else}
-              <div class="flex gap-4 mt-4">
-                <button
-                  class="btn btn-secondary flex-1"
-                  on:click={toggleInputModeHandler}
-                >
-                  ⏹️ Остановить
+              {:else}
+                <button class="btn btn-secondary" on:click={toggleInputModeHandler}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="4" width="4" height="16"/>
+                    <rect x="14" y="4" width="4" height="16"/>
+                  </svg>
+                  <span>Остановить</span>
                 </button>
                 <button class="btn btn-secondary" on:click={clearBuffer}>
-                  🗑️ Очистить
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                  <span>Очистить</span>
                 </button>
-              </div>
-            {/if}
+              {/if}
+            </div>
           </div>
         {/if}
 
         <!-- Show hint when no text -->
         {#if !receivedText && !inputMode}
-          <div class="card mb-6 border-dashed border-2 border-dark-600">
-            <div class="flex flex-col items-center justify-center py-8 text-center">
-              <span class="text-4xl mb-3 opacity-50">📨</span>
-              <p class="text-gray-400">Ожидание текста от контроллера...</p>
-              <p class="text-sm text-gray-600 mt-2">Когда контроллер отправит текст, он появится здесь</p>
+          <div class="card empty-card">
+            <div class="empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
             </div>
+            <p class="empty-title">Ожидание текста от контроллера...</p>
+            <p class="empty-subtitle">Когда контроллер отправит текст, он появится здесь</p>
           </div>
         {/if}
       {/if}
@@ -267,51 +291,64 @@
       <!-- Text Input (for controller) -->
       {#if role === 'controller'}
         <div class="card">
-          <h3 class="font-semibold text-white mb-4">Отправить текст</h3>
+          <h2 class="card-title">Отправить текст</h2>
           <textarea
-            class="input min-h-[200px] resize-none font-mono"
+            class="input text-input"
             bind:value={text}
             on:keydown={handleKeyDown}
-            placeholder="Введите текст для отправки на клиент...&#10;&#10;Ctrl+Enter для быстрой отправки"
+            placeholder="Введите текст для отправки на клиент...
+
+Ctrl+Enter для быстрой отправки"
           ></textarea>
-          <div class="flex gap-4 mt-4">
+          <div class="card-actions">
             <button
               class="btn btn-primary flex-1"
               on:click={sendText}
               disabled={!text.trim() || sending}
             >
-              {sending ? '⏳ Отправка...' : '📤 Отправить'}
+              {#if sending}
+                <div class="spinner-sm"></div>
+                <span>Отправка...</span>
+              {:else}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+                <span>Отправить</span>
+              {/if}
             </button>
             <button
               class="btn btn-secondary"
               on:click={() => text = ''}
               disabled={!text}
             >
-              🗑️ Очистить
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              <span>Очистить</span>
             </button>
           </div>
-          <p class="text-sm text-gray-500 mt-4">
-            💡 На клиенте текст будет вводиться посимвольно при нажатии любых клавиш
-          </p>
+          <p class="input-hint">На клиенте текст будет вводиться посимвольно при нажатии любых клавиш</p>
         </div>
       {/if}
 
       <!-- Hotkeys Reference -->
-      <div class="mt-6 p-4 bg-dark-800/50 rounded-lg border border-dark-700">
-        <h4 class="text-sm font-semibold text-gray-400 mb-3">Горячие клавиши</h4>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-          <div class="flex justify-between">
-            <span class="text-gray-500">Переключить режим ввода</span>
-            <code class="text-primary-400">{hotkeyToggle}</code>
+      <div class="hotkeys-card">
+        <h3 class="hotkeys-title">Горячие клавиши</h3>
+        <div class="hotkeys-grid">
+          <div class="hotkey-item">
+            <span class="hotkey-label">Переключить режим ввода</span>
+            <code class="hotkey-key">{hotkeyToggle}</code>
           </div>
-          <div class="flex justify-between">
-            <span class="text-gray-500">Ввести весь буфер сразу</span>
-            <code class="text-primary-400">{hotkeyPaste}</code>
+          <div class="hotkey-item">
+            <span class="hotkey-label">Ввести весь буфер сразу</span>
+            <code class="hotkey-key">{hotkeyPaste}</code>
           </div>
           {#if role === 'controller'}
-            <div class="flex justify-between">
-              <span class="text-gray-500">Отправить текст</span>
-              <code class="text-primary-400">Ctrl+Enter</code>
+            <div class="hotkey-item">
+              <span class="hotkey-label">Отправить текст</span>
+              <code class="hotkey-key">Ctrl+Enter</code>
             </div>
           {/if}
         </div>
@@ -319,3 +356,299 @@
     {/if}
   </div>
 </div>
+
+<style>
+  .panel {
+    height: 100%;
+    padding: var(--space-8);
+    overflow: auto;
+  }
+
+  .panel-content {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  .panel-header {
+    margin-bottom: var(--space-2);
+  }
+
+  .panel-title {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-2) 0;
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .panel-subtitle {
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  /* Empty State */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16);
+    text-align: center;
+  }
+
+  .empty-icon {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-2xl);
+    color: var(--text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .empty-title {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .empty-subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin: 0;
+  }
+
+  /* Mode Card */
+  .mode-card {
+    border-color: var(--border-primary);
+  }
+
+  .mode-card.active {
+    border-color: var(--color-success);
+    background: var(--color-success-muted);
+  }
+
+  .mode-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .mode-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    color: var(--text-muted);
+  }
+
+  .mode-icon.active {
+    background: var(--color-success);
+    color: white;
+  }
+
+  .mode-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .mode-title {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .mode-title.active {
+    color: var(--color-success);
+  }
+
+  .mode-subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+
+  /* Progress Section */
+  .progress-section {
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    background: rgba(48, 209, 88, 0.1);
+    border: 1px solid rgba(48, 209, 88, 0.2);
+    border-radius: var(--radius-lg);
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--text-sm);
+    color: var(--color-success);
+    margin-bottom: var(--space-2);
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--color-success);
+    transition: width var(--duration-fast) var(--ease-out);
+  }
+
+  .progress-hint {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    margin: var(--space-2) 0 0 0;
+  }
+
+  /* Card Styles */
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+  }
+
+  .card-title {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .card-badge {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+
+  .card-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .flex-1 {
+    flex: 1;
+  }
+
+  /* Text Display */
+  .text-display {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    max-height: 160px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .text-done {
+    color: var(--text-muted);
+  }
+
+  .text-remaining {
+    color: var(--color-success);
+    border-left: 2px solid var(--color-success);
+    padding-left: 2px;
+  }
+
+  /* Text Input */
+  .text-input {
+    min-height: 180px;
+    resize: vertical;
+    font-family: var(--font-mono);
+  }
+
+  .input-hint {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin: var(--space-4) 0 0 0;
+  }
+
+  /* Empty Card */
+  .empty-card {
+    border-style: dashed;
+    text-align: center;
+    padding: var(--space-8);
+  }
+
+  .empty-card .empty-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--space-4);
+  }
+
+  /* Hotkeys Card */
+  .hotkeys-card {
+    padding: var(--space-4);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-lg);
+  }
+
+  .hotkeys-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 var(--space-3) 0;
+  }
+
+  .hotkeys-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .hotkey-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--text-sm);
+  }
+
+  .hotkey-label {
+    color: var(--text-tertiary);
+  }
+
+  .hotkey-key {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--accent-primary);
+    background: var(--accent-primary-muted);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Spinner */
+  .spinner-sm {
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: var(--radius-full);
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+</style>

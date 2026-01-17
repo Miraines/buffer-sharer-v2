@@ -39,17 +39,17 @@
   };
 
   const permissionIcons: Record<string, string> = {
-    screen_capture: '📷',
-    accessibility: '⌨️',
-    microphone: '🎤'
+    screen_capture: 'screen',
+    accessibility: 'keyboard',
+    microphone: 'mic'
   };
 
   const statusColors: Record<string, string> = {
-    granted: 'text-emerald-400',
-    denied: 'text-red-400',
-    not_asked: 'text-amber-400',
-    restricted: 'text-gray-400',
-    unknown: 'text-gray-400'
+    granted: 'success',
+    denied: 'error',
+    not_asked: 'warning',
+    restricted: 'muted',
+    unknown: 'muted'
   };
 
   const statusLabels: Record<string, string> = {
@@ -200,110 +200,131 @@
 </script>
 
 {#if show}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div class="bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+  <div class="modal-overlay">
+    <div class="modal animate-scale-in">
       <!-- Header -->
-      <div class="p-6 border-b border-dark-700">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center">
-            <span class="text-2xl">🔐</span>
-          </div>
-          <div>
-            <h2 class="text-xl font-bold text-white">Требуются разрешения</h2>
-            <p class="text-sm text-gray-400">
-              {platformNames[platform]} требует подтверждения
-            </p>
-          </div>
+      <div class="modal-header">
+        <div class="header-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div class="header-text">
+          <h2 class="modal-title">Требуются разрешения</h2>
+          <p class="modal-subtitle">{platformNames[platform]} требует подтверждения</p>
         </div>
       </div>
 
-      <!-- Permissions List -->
-      <div class="p-6 space-y-4">
-        <p class="text-gray-400 text-sm mb-4">
-          Для корректной работы приложения необходимы следующие разрешения:
-        </p>
+      <!-- Content -->
+      <div class="modal-content">
+        <p class="content-intro">Для корректной работы приложения необходимы следующие разрешения:</p>
 
-        {#each permissions as perm}
-          <div class="flex items-center justify-between p-4 rounded-xl bg-dark-900/50 border border-dark-700">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">{permissionIcons[perm.type] || '🔒'}</span>
-              <div>
-                <p class="font-medium text-white">{perm.name}</p>
-                <p class="text-xs text-gray-500">{perm.description}</p>
+        <div class="permissions-list">
+          {#each permissions as perm}
+            <div class="permission-item">
+              <div class="permission-icon">
+                {#if permissionIcons[perm.type] === 'screen'}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                    <line x1="8" y1="21" x2="16" y2="21"/>
+                    <line x1="12" y1="17" x2="12" y2="21"/>
+                  </svg>
+                {:else if permissionIcons[perm.type] === 'keyboard'}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
+                    <path d="M6 8h.001"/>
+                    <path d="M10 8h.001"/>
+                    <path d="M14 8h.001"/>
+                    <path d="M18 8h.001"/>
+                    <path d="M8 12h.001"/>
+                    <path d="M12 12h.001"/>
+                    <path d="M16 12h.001"/>
+                    <path d="M7 16h10"/>
+                  </svg>
+                {:else}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                {/if}
+              </div>
+              <div class="permission-info">
+                <span class="permission-name">{perm.name}</span>
+                <span class="permission-desc">{perm.description}</span>
+              </div>
+              <div class="permission-actions">
+                <span class="permission-status status-{statusColors[perm.status]}">
+                  {statusLabels[perm.status]}
+                </span>
+                {#if perm.status !== 'granted'}
+                  <button
+                    class="btn btn-secondary btn-sm"
+                    on:click={() => openSettings(perm.type)}
+                  >
+                    Настройки
+                  </button>
+                {:else}
+                  <span class="check-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </span>
+                {/if}
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs {statusColors[perm.status]}">
-                {statusLabels[perm.status]}
-              </span>
-              {#if perm.status !== 'granted'}
-                <button
-                  class="text-xs px-2 py-1 rounded bg-primary-600 hover:bg-primary-500 text-white transition-colors"
-                  on:click={() => openSettings(perm.type)}
-                >
-                  Настройки
-                </button>
-              {:else}
-                <span class="text-emerald-400">✓</span>
-              {/if}
-            </div>
-          </div>
-        {/each}
+          {/each}
+        </div>
 
-        <!-- macOS Restart Warning -->
+        <!-- Warnings / Hints -->
         {#if platform === 'darwin' && showRestartHint && !allGranted}
-          <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-            <div class="flex items-start gap-3">
-              <span class="text-2xl">⚠️</span>
-              <div class="flex-1">
-                <p class="font-medium text-amber-400 mb-1">Требуется перезапуск</p>
-                <p class="text-xs text-amber-400/80">
-                  На macOS после выдачи разрешений необходимо перезапустить приложение,
-                  чтобы изменения вступили в силу. Это ограничение системы безопасности macOS.
-                </p>
-              </div>
+          <div class="alert alert-warning">
+            <svg class="alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div class="alert-content">
+              <span class="alert-title">Требуется перезапуск</span>
+              <span class="alert-text">На macOS после выдачи разрешений необходимо перезапустить приложение, чтобы изменения вступили в силу.</span>
             </div>
           </div>
         {/if}
 
-        <!-- Show restart hint if permissions granted but services not working -->
         {#if allGranted && needsRestart}
-          <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-            <div class="flex items-start gap-3">
-              <span class="text-2xl">✅</span>
-              <div class="flex-1">
-                <p class="font-medium text-emerald-400 mb-1">Разрешения получены!</p>
-                <p class="text-xs text-emerald-400/80">
-                  Разрешения выданы, но для их применения нужен перезапуск приложения.
-                </p>
-              </div>
+          <div class="alert alert-success">
+            <svg class="alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div class="alert-content">
+              <span class="alert-title">Разрешения получены!</span>
+              <span class="alert-text">Разрешения выданы, но для их применения нужен перезапуск приложения.</span>
             </div>
           </div>
         {/if}
 
         {#if platform === 'darwin' && !showRestartHint && !needsRestart}
-          <div class="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs">
-            <p class="font-medium mb-1">💡 Подсказка для macOS:</p>
-            <p>1. Нажмите "Настройки" рядом с нужным разрешением</p>
-            <p>2. Включите галочку для Buffer Sharer</p>
-            <p>3. Перезапустите приложение</p>
+          <div class="hint-box">
+            <span class="hint-title">Подсказка для macOS:</span>
+            <ol class="hint-steps">
+              <li>Нажмите "Настройки" рядом с нужным разрешением</li>
+              <li>Включите галочку для Buffer Sharer</li>
+              <li>Перезапустите приложение</li>
+            </ol>
           </div>
         {/if}
       </div>
 
-      <!-- Actions -->
-      <div class="p-6 border-t border-dark-700 space-y-3">
-        <button
-          class="w-full btn btn-primary flex items-center justify-center gap-2"
-          on:click={restartApplication}
-        >
-          <span>🔄</span>
-          Перезапустить приложение
+      <!-- Footer -->
+      <div class="modal-footer">
+        <button class="btn btn-primary action-btn" on:click={restartApplication}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10"/>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+          </svg>
+          <span>Перезапустить приложение</span>
         </button>
-        <button
-          class="w-full btn btn-secondary text-sm"
-          on:click={skipForNow}
-        >
+        <button class="btn btn-ghost skip-btn" on:click={skipForNow}>
           Пропустить (некоторые функции не будут работать)
         </button>
       </div>
@@ -312,46 +333,274 @@
 {/if}
 
 <style>
-  .btn {
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .modal {
+    width: 100%;
+    max-width: 480px;
+    margin: var(--space-4);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .modal-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .header-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-primary-muted);
+    border-radius: var(--radius-xl);
+    color: var(--accent-primary);
+  }
+
+  .header-text {
+    flex: 1;
+  }
+
+  .modal-title {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-1) 0;
+  }
+
+  .modal-subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin: 0;
+  }
+
+  /* Content */
+  .modal-content {
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .content-intro {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  /* Permissions List */
+  .permissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .permission-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-xl);
+  }
+
+  .permission-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-hover);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .permission-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .permission-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .permission-desc {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  .permission-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+  .permission-status {
+    font-size: var(--text-xs);
     font-weight: 500;
-    transition: all 0.2s;
   }
-  .btn-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
+
+  .status-success { color: var(--color-success); }
+  .status-error { color: var(--color-error); }
+  .status-warning { color: var(--color-warning); }
+  .status-muted { color: var(--text-muted); }
+
+  .check-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-success);
   }
-  .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+
+  .btn-sm {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
   }
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+
+  /* Alerts */
+  .alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
   }
-  .btn-secondary {
-    background: rgba(255, 255, 255, 0.1);
-    color: #e2e8f0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+
+  .alert-warning {
+    background: var(--color-warning-muted);
+    border: 1px solid rgba(255, 159, 10, 0.3);
   }
-  .btn-secondary:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
+
+  .alert-success {
+    background: var(--color-success-muted);
+    border: 1px solid rgba(48, 209, 88, 0.3);
   }
-  .btn-secondary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+
+  .alert-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
   }
-  /* Light theme support */
-  :global(html.light) .bg-dark-800 {
-    background-color: white;
+
+  .alert-warning .alert-icon { color: var(--color-warning); }
+  .alert-success .alert-icon { color: var(--color-success); }
+
+  .alert-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
   }
-  :global(html.light) .bg-dark-900\/50 {
-    background-color: #f8fafc;
+
+  .alert-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
   }
-  :global(html.light) .border-dark-700 {
-    border-color: #e2e8f0;
+
+  .alert-warning .alert-title { color: var(--color-warning); }
+  .alert-success .alert-title { color: var(--color-success); }
+
+  .alert-text {
+    font-size: var(--text-xs);
+    opacity: 0.9;
   }
-  :global(html.light) .border-dark-600 {
-    border-color: #cbd5e1;
+
+  .alert-warning .alert-text { color: var(--color-warning); }
+  .alert-success .alert-text { color: var(--color-success); }
+
+  /* Hint Box */
+  .hint-box {
+    padding: var(--space-4);
+    background: var(--color-info-muted);
+    border: 1px solid rgba(100, 210, 255, 0.3);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-xs);
+    color: var(--color-info);
+  }
+
+  .hint-title {
+    font-weight: 600;
+    display: block;
+    margin-bottom: var(--space-2);
+  }
+
+  .hint-steps {
+    margin: 0;
+    padding-left: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  /* Footer */
+  .modal-footer {
+    padding: var(--space-6);
+    border-top: 1px solid var(--border-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .action-btn {
+    width: 100%;
+    padding: var(--space-4);
+  }
+
+  .skip-btn {
+    width: 100%;
+    font-size: var(--text-sm);
+  }
+
+  /* Animation */
+  .animate-scale-in {
+    animation: scale-in var(--duration-normal) var(--ease-out);
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Light theme */
+  :global(html.light) .modal {
+    background: white;
+  }
+
+  :global(html.light) .permission-item {
+    background: var(--bg-secondary);
   }
 </style>

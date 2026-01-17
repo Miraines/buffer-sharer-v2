@@ -167,87 +167,97 @@
   }
 </script>
 
-<div class="h-full flex">
+<div class="screenshot-container">
   <!-- History sidebar (only for controller) -->
   {#if role === 'controller' && isConnected && history.length > 0}
-    <div class="w-48 bg-dark-900 border-r border-dark-700 flex flex-col">
-      <div class="p-3 border-b border-dark-700 flex items-center justify-between">
-        <span class="text-sm font-semibold text-gray-400">История ({history.length})</span>
-        <button
-          class="text-xs text-gray-500 hover:text-red-400 transition-colors"
-          on:click={clearHistory}
-          title="Очистить историю"
-        >
-          🗑️
+    <aside class="history-sidebar">
+      <div class="history-header">
+        <span class="history-title">История ({history.length})</span>
+        <button class="btn-icon-sm" on:click={clearHistory} title="Очистить историю">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
         </button>
       </div>
-      <div class="flex-1 overflow-y-auto p-2 space-y-2">
+      <div class="history-list">
         {#each [...history].reverse() as entry (entry.id)}
           <button
-            class="w-full text-left rounded-lg overflow-hidden border-2 transition-all duration-200 {selectedId === entry.id ? 'border-primary-500 ring-2 ring-primary-500/30' : 'border-dark-600 hover:border-dark-500'}"
+            class="history-item {selectedId === entry.id ? 'active' : ''}"
             on:click={() => selectScreenshot(entry.id)}
           >
             {#if entry.data}
               <img
                 src={entry.data}
                 alt="Screenshot {entry.id}"
-                class="w-full h-20 object-cover bg-dark-800"
+                class="history-thumb"
               />
             {:else}
-              <div class="w-full h-20 bg-dark-800 flex items-center justify-center">
+              <div class="history-thumb placeholder">
                 {#if loadingId === entry.id}
-                  <span class="text-xs text-gray-500 animate-pulse">Загрузка...</span>
+                  <div class="spinner-sm"></div>
                 {:else}
-                  <span class="text-xs text-gray-500">#{entry.id}</span>
+                  <span>#{entry.id}</span>
                 {/if}
               </div>
             {/if}
-            <div class="p-1.5 bg-dark-800">
-              <div class="text-xs text-gray-400">{formatTime(entry.timestamp)}</div>
-              <div class="text-xs text-gray-600">{entry.width}x{entry.height}</div>
+            <div class="history-meta">
+              <span class="history-time">{formatTime(entry.timestamp)}</span>
+              <span class="history-size">{entry.width}x{entry.height}</span>
             </div>
           </button>
         {/each}
       </div>
-    </div>
+    </aside>
   {/if}
 
   <!-- Main content -->
-  <div class="flex-1 p-8 overflow-auto">
-    <div class="max-w-5xl mx-auto">
-      <div class="flex items-center justify-between mb-6">
+  <main class="screenshot-main">
+    <div class="screenshot-content">
+      <div class="panel-header">
         <div>
-          <h2 class="text-2xl font-bold text-white">Скриншоты</h2>
-          <p class="text-gray-400">
+          <h1 class="panel-title">Скриншоты</h1>
+          <p class="panel-subtitle">
             {role === 'controller'
               ? 'Просмотр экрана клиента в реальном времени'
               : 'Ваш экран транслируется контроллеру'}
           </p>
         </div>
         {#if screenshotData?.timestamp}
-          <span class="text-sm text-gray-500">Обновлено: {formatTime(screenshotData.timestamp)}</span>
+          <span class="timestamp">Обновлено: {formatTime(screenshotData.timestamp)}</span>
         {/if}
       </div>
 
       {#if !isConnected}
-        <div class="card flex flex-col items-center justify-center py-20">
-          <span class="text-6xl mb-4 opacity-50">📷</span>
-          <p class="text-gray-400 text-lg">Сначала подключитесь к комнате</p>
+        <div class="empty-state card">
+          <div class="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+          <p class="empty-title">Сначала подключитесь к комнате</p>
         </div>
       {:else if role === 'client'}
-        <div class="card flex flex-col items-center justify-center py-20">
-          <span class="text-6xl mb-4 opacity-50">📡</span>
-          <p class="text-gray-400 text-lg">Ваш экран транслируется</p>
-          <p class="text-sm text-gray-500 mt-2">Контроллер видит ваш экран в реальном времени</p>
+        <div class="empty-state card">
+          <div class="empty-icon streaming">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <p class="empty-title">Ваш экран транслируется</p>
+          <p class="empty-subtitle">Контроллер видит ваш экран в реальном времени</p>
         </div>
       {:else if screenshotData}
-        <div class="card p-2">
+        <div class="screenshot-view card">
           <img
             src={screenshotData.data}
             alt="Screenshot"
-            class="w-full rounded-lg"
+            class="screenshot-image"
           />
-          <div class="flex items-center justify-between mt-2 px-2 text-sm text-gray-500">
+          <div class="screenshot-meta">
             <span>{screenshotData.width} x {screenshotData.height}</span>
             {#if selectedId}
               <span>#{selectedId}</span>
@@ -255,33 +265,297 @@
           </div>
         </div>
       {:else}
-        <div class="card flex flex-col items-center justify-center py-20">
-          <div class="animate-pulse">
-            <span class="text-6xl opacity-50">⏳</span>
+        <div class="empty-state card">
+          <div class="empty-icon loading">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
           </div>
-          <p class="text-gray-400 text-lg mt-4">Ожидание скриншота от клиента...</p>
-          <p class="text-sm text-gray-500 mt-2">Скриншоты обновляются автоматически</p>
+          <p class="empty-title">Ожидание скриншота от клиента...</p>
+          <p class="empty-subtitle">Скриншоты обновляются автоматически</p>
         </div>
       {/if}
 
       <!-- Controls -->
       {#if role === 'controller'}
-        <div class="flex gap-4 mt-6">
+        <div class="controls">
           <button
-            class="btn flex-1 {saveSuccess ? 'btn-success' : 'btn-secondary'}"
+            class="btn {saveSuccess ? 'btn-success' : 'btn-secondary'} save-btn"
             disabled={!isConnected || !screenshotData || saving}
             on:click={saveScreenshot}
           >
             {#if saving}
-              ⏳ Сохранение...
+              <div class="spinner-sm"></div>
+              <span>Сохранение...</span>
             {:else if saveSuccess}
-              ✓ Сохранено!
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Сохранено!</span>
             {:else}
-              💾 Сохранить
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Сохранить</span>
             {/if}
           </button>
         </div>
       {/if}
     </div>
-  </div>
+  </main>
 </div>
+
+<style>
+  .screenshot-container {
+    height: 100%;
+    display: flex;
+  }
+
+  /* History Sidebar */
+  .history-sidebar {
+    width: 180px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-right: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .history-header {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .history-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .btn-icon-sm {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+
+  .btn-icon-sm:hover {
+    background: var(--bg-hover);
+    color: var(--color-error);
+  }
+
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .history-item {
+    width: 100%;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    text-align: left;
+    padding: 0;
+  }
+
+  .history-item:hover {
+    border-color: var(--border-hover);
+  }
+
+  .history-item.active {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-primary-muted);
+  }
+
+  .history-thumb {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    background: var(--bg-tertiary);
+    display: block;
+  }
+
+  .history-thumb.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  .history-meta {
+    padding: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .history-time {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+  }
+
+  .history-size {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  /* Main Content */
+  .screenshot-main {
+    flex: 1;
+    padding: var(--space-8);
+    overflow: auto;
+  }
+
+  .screenshot-content {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+  }
+
+  .panel-title {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-2) 0;
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .panel-subtitle {
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  .timestamp {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+
+  /* Empty State */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16);
+    text-align: center;
+  }
+
+  .empty-icon {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-2xl);
+    color: var(--text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .empty-icon.streaming {
+    background: var(--color-success-muted);
+    color: var(--color-success);
+    animation: pulse-glow 2s var(--ease-in-out) infinite;
+  }
+
+  .empty-icon.loading {
+    animation: pulse-glow 2s var(--ease-in-out) infinite;
+  }
+
+  .empty-title {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .empty-subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin: 0;
+  }
+
+  /* Screenshot View */
+  .screenshot-view {
+    padding: var(--space-2);
+  }
+
+  .screenshot-image {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    display: block;
+  }
+
+  .screenshot-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-2) var(--space-1);
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+
+  /* Controls */
+  .controls {
+    margin-top: var(--space-6);
+  }
+
+  .save-btn {
+    width: 100%;
+    padding: var(--space-4);
+  }
+
+  /* Spinner */
+  .spinner-sm {
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: var(--radius-full);
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+</style>
