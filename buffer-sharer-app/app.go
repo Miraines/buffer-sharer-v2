@@ -91,10 +91,11 @@ type App struct {
 	logger     *logging.Logger
 
 	// Connection state
-	client    *network.Client
-	connected bool
-	roomCode  string
-	role      string
+	client     *network.Client
+	connected  bool
+	connecting bool // prevents concurrent Connect() calls
+	roomCode   string
+	role       string
 
 	// Services
 	screenshotService   *screenshot.CaptureService
@@ -566,7 +567,23 @@ func (a *App) Connect(host string, port int, role, roomCode string) ConnectionSt
 		a.mu.Unlock()
 		return status
 	}
+	if a.connecting {
+		a.mu.Unlock()
+		a.log("warn", "Подключение уже выполняется, игнорируем повторный вызов")
+		return ConnectionStatus{
+			Connected: false,
+			Error:     "connection already in progress",
+		}
+	}
+	a.connecting = true
 	a.mu.Unlock()
+
+	// Ensure connecting flag is reset on exit
+	defer func() {
+		a.mu.Lock()
+		a.connecting = false
+		a.mu.Unlock()
+	}()
 
 	a.log("info", "Подключение к "+host+"...")
 

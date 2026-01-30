@@ -236,10 +236,8 @@ func parseKeyCombo(combo string) ([]hotkey.Modifier, hotkey.Key, error) {
 	return mods, key, nil
 }
 
-// Modifier constants for different platforms
-// These values are platform-specific and match golang.design/x/hotkey internal values
+// Modifier constants (common across platforms)
 const (
-	// Common modifiers
 	modCtrl  hotkey.Modifier = hotkey.ModCtrl
 	modShift hotkey.Modifier = hotkey.ModShift
 )
@@ -252,27 +250,11 @@ func parseModifier(mod string) hotkey.Modifier {
 	case "shift":
 		return modShift
 	case "alt", "option":
-		// Alt/Option modifier - platform specific
-		// On macOS this is ModOption, on Windows/Linux it's typically Mod1 (1 << 3)
-		if isMacOS {
-			return hotkey.ModOption
-		}
-		// Windows/Linux: Alt is typically 1 << 3 in X11/Windows
-		return hotkey.Modifier(1 << 3)
+		return modAlt
 	case "cmd", "command":
-		// Cmd modifier (macOS only, maps to Ctrl on other platforms for compatibility)
-		if isMacOS {
-			return hotkey.ModCmd
-		}
-		// On Windows/Linux, treat Cmd as Ctrl for cross-platform compatibility
-		return modCtrl
+		return modSuper
 	case "super", "win":
-		// Windows/Super key - maps to Cmd on macOS, Win key on Windows
-		if isMacOS {
-			return hotkey.ModCmd
-		}
-		// Windows: Win key is typically Mod4 (1 << 6)
-		return hotkey.Modifier(1 << 6)
+		return modSuper
 	default:
 		return 0
 	}

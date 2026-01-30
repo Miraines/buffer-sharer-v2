@@ -5,8 +5,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/go-vgo/robotgo"
-
 	"buffer-sharer-app/internal/logging"
 )
 
@@ -68,15 +66,13 @@ func (h *Handler) TypeText(text string) error {
 
 	h.logger.Info("keyboard", "Typing %d characters", utf8.RuneCountInString(text))
 
-	// Use robotgo to type the text
-	// TypeStr handles unicode characters
 	if h.typeDelay > 0 {
 		for _, char := range text {
-			robotgo.Type(string(char))
+			platformType(string(char))
 			time.Sleep(time.Duration(h.typeDelay) * time.Millisecond)
 		}
 	} else {
-		robotgo.Type(text)
+		platformType(text)
 	}
 
 	h.logger.Debug("keyboard", "Finished typing")
@@ -124,7 +120,7 @@ func (h *Handler) SetTypeDelay(delayMs int) {
 
 // PressKey simulates a single key press
 func (h *Handler) PressKey(key string) error {
-	robotgo.KeyTap(key)
+	platformKeyTap(key)
 	return nil
 }
 
@@ -134,20 +130,16 @@ func (h *Handler) PressKeyCombo(keys ...string) error {
 		return nil
 	}
 
-	// robotgo expects the main key first, then modifiers
-	// But we'll use the more intuitive order
 	if len(keys) == 1 {
-		robotgo.KeyTap(keys[0])
+		platformKeyTap(keys[0])
 	} else {
-		// Last key is the main key, others are modifiers
 		mainKey := keys[len(keys)-1]
 		modifiers := keys[:len(keys)-1]
-		// Convert []string to variadic arguments
 		args := make([]interface{}, len(modifiers))
 		for i, m := range modifiers {
 			args[i] = m
 		}
-		robotgo.KeyTap(mainKey, args...)
+		platformKeyTap(mainKey, args...)
 	}
 	return nil
 }

@@ -1,15 +1,10 @@
 package screenshot
 
 import (
-	"bytes"
 	"context"
 	"image"
-	"image/draw"
-	"image/jpeg"
 	"sync"
 	"time"
-
-	"github.com/go-vgo/robotgo"
 
 	"buffer-sharer-app/internal/logging"
 	"buffer-sharer-app/internal/network"
@@ -220,67 +215,28 @@ func (s *CaptureService) capture() (*network.ScreenshotPayload, error) {
 		}, nil
 	}
 
-	// Fallback to robotgo capture
-	s.logger.Debug("screenshot", "Using robotgo fallback for capture")
+	// Fallback to platform-specific capture (robotgo on macOS/Linux)
+	s.logger.Debug("screenshot", "Using fallback capture method")
 
-	// Get screen size
-	width, height = robotgo.GetScreenSize()
-	if width == 0 || height == 0 {
-		s.logger.Warn("screenshot", "No active displays found")
-		return nil, nil
-	}
-
-	// Capture the screen using robotgo
-	bitmap := robotgo.CaptureScreen(0, 0, width, height)
-	if bitmap == nil {
-		s.logger.Error("screenshot", "Failed to capture screen")
-		return nil, nil
-	}
-	defer robotgo.FreeBitmap(bitmap)
-
-	// Convert bitmap to image
-	img := robotgo.ToImage(bitmap)
-	if img == nil {
-		s.logger.Error("screenshot", "Failed to convert bitmap to image")
-		return nil, nil
-	}
-
-	// Convert to RGBA if needed
-	var rgbaImg *image.RGBA
-	switch v := img.(type) {
-	case *image.RGBA:
-		rgbaImg = v
-	default:
-		bounds := img.Bounds()
-		rgbaImg = image.NewRGBA(bounds)
-		draw.Draw(rgbaImg, bounds, img, bounds.Min, draw.Src)
-	}
-
-	// Encode to JPEG
-	var buf bytes.Buffer
-	opts := &jpeg.Options{Quality: s.quality}
-	if err := jpeg.Encode(&buf, rgbaImg, opts); err != nil {
+	payload, err := captureScreenFallback(s.quality)
+	if err != nil {
+		s.logger.Error("screenshot", "Fallback capture failed: %v", err)
 		return nil, err
 	}
+	if payload == nil {
+		s.logger.Warn("screenshot", "Fallback capture returned nil")
+		return nil, nil
+	}
 
-	data = buf.Bytes()
-
-	// Store the last screenshot
 	s.mu.Lock()
-	s.lastImage = rgbaImg
-	s.lastData = data
+	s.lastData = payload.Data
+	s.lastImage = nil
 	s.mu.Unlock()
 
-	s.logger.Debug("screenshot", "Captured screenshot %dx%d (%d bytes) [robotgo]",
-		rgbaImg.Bounds().Dx(), rgbaImg.Bounds().Dy(), len(data))
+	s.logger.Debug("screenshot", "Captured screenshot %dx%d (%d bytes) [fallback]",
+		payload.Width, payload.Height, len(payload.Data))
 
-	return &network.ScreenshotPayload{
-		Width:   rgbaImg.Bounds().Dx(),
-		Height:  rgbaImg.Bounds().Dy(),
-		Format:  "jpeg",
-		Data:    data,
-		Quality: s.quality,
-	}, nil
+	return payload, nil
 }
 
 // SetInterval updates the capture interval

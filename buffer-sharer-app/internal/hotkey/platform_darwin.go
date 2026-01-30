@@ -2,7 +2,10 @@
 
 package hotkey
 
-// Platform-specific notes for macOS:
-// - Requires Accessibility permissions in System Preferences
-// - Use Cmd key instead of Ctrl for some shortcuts
-// - Some key combinations may conflict with system shortcuts
+import "golang.design/x/hotkey"
+
+// modAlt is Option on macOS
+const modAlt hotkey.Modifier = hotkey.ModOption
+
+// modSuper is Cmd on macOS
+const modSuper hotkey.Modifier = hotkey.ModCmd
