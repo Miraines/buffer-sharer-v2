@@ -1,108 +1,67 @@
 #!/bin/bash
 set -e
 
-# Buffer Sharer Middleware Deployment Script
-# Usage: ./deploy.sh [port]
+# Buffer Sharer Middleware — build, deploy & restart
+# Usage: ./deploy.sh
 
-PORT=${1:-8080}
+SSH_KEY="$HOME/.ssh/ssh-key-1762630178961"
+SSH_USER="maust"
+SSH_HOST="158.160.173.98"
+
+REMOTE_DIR="/home/maust"
 BINARY_NAME="buffer-sharer-middleware"
-INSTALL_DIR="/usr/local/bin"
-SERVICE_FILE="/etc/systemd/system/${BINARY_NAME}.service"
+PORT=9000
+MAIN_GO="main.go"
+
+remote() {
+    ssh -i "$SSH_KEY" -l "$SSH_USER" "$SSH_HOST" "$@"
+}
 
 echo "╔════════════════════════════════════════╗"
-echo "║  Buffer Sharer Middleware Installer    ║"
+echo "║  Buffer Sharer — Deploy Script         ║"
 echo "╚════════════════════════════════════════╝"
 echo ""
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-    echo "Please run as root: sudo ./deploy.sh"
-    exit 1
-fi
+# --- 1. Bump version ---
+CURRENT_VERSION=$(grep -o 'Middleware v[0-9]*\.[0-9]*' "$MAIN_GO" | grep -o '[0-9]*\.[0-9]*')
+MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+NEW_MINOR=$((MINOR + 1))
+NEW_VERSION="${MAJOR}.${NEW_MINOR}"
 
-# Detect architecture
-ARCH=$(uname -m)
-case $ARCH in
-    x86_64)
-        BINARY_SUFFIX="linux-amd64"
-        ;;
-    aarch64|arm64)
-        BINARY_SUFFIX="linux-arm64"
-        ;;
-    *)
-        echo "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
-esac
+sed -i '' "s/Middleware v${CURRENT_VERSION}/Middleware v${NEW_VERSION}/" "$MAIN_GO"
+echo ">> Version: v${CURRENT_VERSION} -> v${NEW_VERSION}"
 
-# Check if binary exists, otherwise build
-if [ -f "${BINARY_NAME}-${BINARY_SUFFIX}" ]; then
-    BINARY="${BINARY_NAME}-${BINARY_SUFFIX}"
-elif [ -f "${BINARY_NAME}" ]; then
-    BINARY="${BINARY_NAME}"
-else
-    echo "Building from source..."
-    if ! command -v go &> /dev/null; then
-        echo "Go is not installed. Installing..."
-        apt-get update && apt-get install -y golang-go
-    fi
-    GOOS=linux GOARCH=$(echo $BINARY_SUFFIX | cut -d'-' -f2) go build -o ${BINARY_NAME} .
-    BINARY="${BINARY_NAME}"
-fi
+# --- 2. Build for Linux ---
+echo ">> Building for linux/amd64..."
+GOOS=linux GOARCH=amd64 go build -o "$BINARY_NAME" .
+echo ">> Build OK ($(du -h "$BINARY_NAME" | cut -f1))"
 
-echo "Installing binary..."
-cp "$BINARY" "${INSTALL_DIR}/${BINARY_NAME}"
-chmod +x "${INSTALL_DIR}/${BINARY_NAME}"
+# --- 3. Stop old process on VM ---
+echo ">> Stopping old process on VM..."
+remote "pkill -f $BINARY_NAME" || true
+sleep 1
 
-echo "Creating systemd service..."
-cat > "$SERVICE_FILE" << EOF
-[Unit]
-Description=Buffer Sharer Middleware Server
-After=network.target
+# --- 4. Upload new binary ---
+echo ">> Uploading binary to VM..."
+scp -i "$SSH_KEY" "$BINARY_NAME" "${SSH_USER}@${SSH_HOST}:${REMOTE_DIR}/${BINARY_NAME}"
 
-[Service]
-Type=simple
-User=nobody
-Group=nogroup
-ExecStart=${INSTALL_DIR}/${BINARY_NAME} -port ${PORT}
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
+# --- 5. Start on VM ---
+echo ">> Starting on VM (port $PORT)..."
+ssh -i "$SSH_KEY" -l "$SSH_USER" "$SSH_HOST" -f "chmod +x ${REMOTE_DIR}/${BINARY_NAME} && ${REMOTE_DIR}/${BINARY_NAME} -port ${PORT} > ${REMOTE_DIR}/${BINARY_NAME}.log 2>&1"
+sleep 1
 
-# Security hardening
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=yes
-PrivateTmp=yes
-PrivateDevices=yes
+# --- 6. Verify ---
+echo ">> Checking process..."
+remote "pgrep -f $BINARY_NAME" && echo ">> OK, running!" || echo ">> FAILED to start"
 
-[Install]
-WantedBy=multi-user.target
-EOF
-
-echo "Configuring systemd..."
-systemctl daemon-reload
-systemctl enable ${BINARY_NAME}
-systemctl restart ${BINARY_NAME}
-
-# Configure firewall if ufw is installed
-if command -v ufw &> /dev/null; then
-    echo "Configuring firewall..."
-    ufw allow ${PORT}/tcp
-fi
+# --- Cleanup local binary ---
+rm -f "$BINARY_NAME"
 
 echo ""
 echo "╔════════════════════════════════════════╗"
-echo "║        Installation Complete!          ║"
-echo "╠════════════════════════════════════════╣"
-echo "║  Middleware running on port ${PORT}         ║"
-echo "╠════════════════════════════════════════╣"
-echo "║  Commands:                             ║"
-echo "║  systemctl status ${BINARY_NAME}  ║"
-echo "║  journalctl -u ${BINARY_NAME} -f  ║"
+echo "║  Deployed v${NEW_VERSION} to ${SSH_HOST}        ║"
+echo "║  Port: ${PORT}                              ║"
+echo "║                                        ║"
+echo "║  Logs: ssh ... tail -f ${BINARY_NAME}.log ║"
 echo "╚════════════════════════════════════════╝"
-echo ""
-
-# Show status
-systemctl status ${BINARY_NAME} --no-pager || true
