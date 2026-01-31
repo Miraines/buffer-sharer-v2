@@ -44,6 +44,9 @@ func (m *Manager) GetWindowCount() int {
 	return 0
 }
 
+// SetExcludedWindowNumber is a no-op on unsupported platforms
+func (m *Manager) SetExcludedWindowNumber(wn int) {}
+
 // IsSupported returns false on non-macOS platforms
 func (m *Manager) IsSupported() bool {
 	return false

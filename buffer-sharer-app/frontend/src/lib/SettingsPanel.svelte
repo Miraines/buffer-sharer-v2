@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { SaveSettings, SelectScreenshotDirectory, GetScreenshotSaveDir } from '../../wailsjs/go/main/App';
-  import { main } from '../../wailsjs/go/models';
+  import { SaveSettings, SelectScreenshotDirectory, GetScreenshotSaveDir } from '../../wailsjs/go/app/App';
+  import { app } from '../../wailsjs/go/models';
 
   export let settings: {
     middlewareHost: string;
@@ -106,7 +106,7 @@
   async function saveSettings() {
     saving = true;
     try {
-      const s = new main.Settings({
+      const s = new app.Settings({
         middlewareHost: settings.middlewareHost,
         middlewarePort: settings.middlewarePort,
         screenshotInterval: settings.screenshotInterval,

@@ -24,6 +24,7 @@ const (
 	ActionTakeScreenshot    Action = "take_screenshot"
 	ActionPasteFromBuffer   Action = "paste_from_buffer"
 	ActionToggleInvisibility Action = "toggle_invisibility"
+	ActionToggleHints       Action = "toggle_hints"
 )
 
 // Handler is a function called when a hotkey is triggered

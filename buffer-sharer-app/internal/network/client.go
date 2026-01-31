@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -377,7 +378,12 @@ func (c *Client) receiveLoop(ctx context.Context) {
 
 			// Only log error if we're still supposed to be running
 			if running {
-				c.logger.Error("network", "Read error: %v", err)
+				// conn.Close() from Send() on write error produces net.ErrClosed — not a real error
+				if errors.Is(err, net.ErrClosed) {
+					c.logger.Warn("network", "Connection closed (likely write error triggered reconnect)")
+				} else {
+					c.logger.Error("network", "Read error: %v", err)
+				}
 				if onDisconnect != nil {
 					onDisconnect(err)
 				}
@@ -465,7 +471,16 @@ func (c *Client) Send(msg *Message) error {
 	writeElapsed := time.Since(startWrite)
 	if err != nil {
 		c.logger.Error("network", "Write error after %v: %v", writeElapsed, err)
+		// Close the connection to prevent stream desynchronization.
+		// This unblocks receiveLoop which will trigger reconnection.
+		conn.Close()
 		return err
+	}
+
+	if n < len(data) {
+		c.logger.Error("network", "Partial write: %d/%d bytes", n, len(data))
+		conn.Close()
+		return fmt.Errorf("partial write: %d/%d bytes", n, len(data))
 	}
 
 	c.logger.Debug("network", "Sent message type: %s (%d bytes in %v)", msg.Type, n, writeElapsed)

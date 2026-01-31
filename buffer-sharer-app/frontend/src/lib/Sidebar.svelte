@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { ToggleInvisibility } from '../../wailsjs/go/main/App';
+  import { ToggleInvisibility } from '../../wailsjs/go/app/App';
 
   export let currentView: string;
   export let isConnected: boolean;

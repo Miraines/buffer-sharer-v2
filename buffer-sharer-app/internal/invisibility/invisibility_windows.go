@@ -121,6 +121,9 @@ func (m *Manager) GetWindowCount() int {
 	return count
 }
 
+// SetExcludedWindowNumber is a no-op on Windows (overlay exclusion handled differently)
+func (m *Manager) SetExcludedWindowNumber(wn int) {}
+
 // IsSupported returns true on Windows 10 2004+
 func (m *Manager) IsSupported() bool {
 	// Check if SetWindowDisplayAffinity is available

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
-  import { SendText, TypeBuffer, ClearKeyboardBuffer, ToggleInputMode, GetInputMode, GetBufferStatus, GetHotkeys } from '../../wailsjs/go/main/App';
+  import { SendText, TypeBuffer, ClearKeyboardBuffer, ToggleInputMode, GetInputMode, GetBufferStatus, GetHotkeys } from '../../wailsjs/go/app/App';
 
   export let isConnected: boolean;
   export let role: string;

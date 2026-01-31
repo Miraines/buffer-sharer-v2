@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy } from 'svelte';
-  import { Connect, Disconnect, ToggleInvisibility } from '../../wailsjs/go/main/App';
+  import { Connect, Disconnect, ToggleInvisibility } from '../../wailsjs/go/app/App';
 
   export let isConnected: boolean;
   export let roomCode: string;

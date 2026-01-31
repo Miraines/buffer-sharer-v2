@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
-  import { GetSettings, GetConnectionStatus, GetStatistics, CheckPermissions, GetInvisibilityStatus } from '../wailsjs/go/main/App';
+  import { GetSettings, GetConnectionStatus, GetStatistics, CheckPermissions, GetInvisibilityStatus } from '../wailsjs/go/app/App';
   import Sidebar from './lib/Sidebar.svelte';
   import ConnectionPanel from './lib/ConnectionPanel.svelte';
   import ScreenshotView from './lib/ScreenshotView.svelte';

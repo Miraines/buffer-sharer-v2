@@ -31,6 +31,31 @@ const (
 	TypeKeyboardBuf MessageType = "keyboard_buffer"
 	TypePing        MessageType = "ping"
 	TypePong        MessageType = "pong"
+
+	// Overlay features
+	TypeNotification MessageType = "notification"
+
+	TypeCursorMove  MessageType = "cursor_move"
+	TypeCursorClick MessageType = "cursor_click"
+	TypeCursorShow  MessageType = "cursor_show"
+	TypeCursorHide  MessageType = "cursor_hide"
+
+	TypeHintShow  MessageType = "hint_show"
+	TypeHintHide  MessageType = "hint_hide"
+	TypeHintClear MessageType = "hint_clear"
+
+	TypeDrawStart MessageType = "draw_start"
+	TypeDrawMove  MessageType = "draw_move"
+	TypeDrawEnd   MessageType = "draw_end"
+	TypeDrawClear MessageType = "draw_clear"
+	TypeDrawUndo  MessageType = "draw_undo"
+
+	TypeTextOverlay      MessageType = "text_overlay"
+	TypeTextOverlayClear MessageType = "text_overlay_clear"
+	TypeHintCollapse     MessageType = "hint_collapse"
+	TypeHintExpand       MessageType = "hint_expand"
+	TypeHintDelete       MessageType = "hint_delete"
+	TypeTextOverlayDel   MessageType = "text_overlay_delete"
 )
 
 // Message represents a protocol message
@@ -89,10 +114,63 @@ type InputModePayload struct {
 	Enabled bool `json:"enabled"`
 }
 
+// NotificationPayload contains toast notification data
+type NotificationPayload struct {
+	Text     string `json:"text"`
+	Type     string `json:"type"`     // "info", "success", "warning", "error"
+	Duration int    `json:"duration"` // ms, 0 = default (3000)
+}
+
+// CursorPayload contains cursor position data (relative 0.0-1.0)
+type CursorPayload struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// HintPayload contains tooltip/hint data
+type HintPayload struct {
+	ID       string  `json:"id"`
+	X        float64 `json:"x"`
+	Y        float64 `json:"y"`
+	Text     string  `json:"text"`
+	Duration int     `json:"duration"` // seconds, 0 = permanent
+}
+
+// DrawStartPayload contains draw start data
+type DrawStartPayload struct {
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Color     string  `json:"color"`     // hex #FF0000
+	Thickness float64 `json:"thickness"` // relative
+	Tool      string  `json:"tool"`      // "brush", "eraser", "arrow", "rect", "circle", "oval", "line", "checkmark", "cross"
+}
+
+// DrawMovePayload contains draw move data
+type DrawMovePayload struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// DrawEndPayload contains draw end data
+type DrawEndPayload struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
 // KeyboardBufferPayload contains buffered keyboard input
 type KeyboardBufferPayload struct {
 	Buffer string `json:"buffer"`
 	Clear  bool   `json:"clear,omitempty"`
+}
+
+// TextOverlayPayload contains text overlay data
+type TextOverlayPayload struct {
+	ID    string  `json:"id"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Text  string  `json:"text"`
+	Color string  `json:"color"`
+	Size  float64 `json:"size"`
 }
 
 // NewMessage creates a new message with the given type and payload

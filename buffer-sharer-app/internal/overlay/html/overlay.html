@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #layer-draw   { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
+  #layer-chat   { position: fixed; inset: 0; z-index: 200; pointer-events: none; }
+  #layer-hints  { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
+  #layer-texts  { position: fixed; inset: 0; z-index: 350; pointer-events: none; }
+  #layer-toasts { position: fixed; inset: 0; z-index: 400; pointer-events: none; }
+
+  /* === Toast notifications === */
+  #layer-toasts {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 24px;
+    gap: 8px;
+  }
+  .toast {
+    max-width: 380px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    animation: toastIn 0.3s ease-out forwards;
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  .toast.removing {
+    animation: toastOut 0.3s ease-in forwards;
+  }
+  .toast-info    { background: rgba(59,130,246,0.85); }
+  .toast-success { background: rgba(34,197,94,0.85); }
+  .toast-warning { background: rgba(234,179,8,0.85); color: #1a1a1a; }
+  .toast-error   { background: rgba(239,68,68,0.85); }
+  @keyframes toastIn {
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(40px); }
+  }
+
+  /* === Cursor === */
+  #ghost-cursor {
+    position: fixed;
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+    z-index: 150;
+    display: none;
+    transition: transform 50ms ease-out;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  }
+  .cursor-ripple {
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #f97316;
+    pointer-events: none;
+    z-index: 149;
+    animation: ripple 0.6s ease-out forwards;
+  }
+  @keyframes ripple {
+    0%   { transform: translate(-50%,-50%) scale(0.5); opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(2.5); opacity: 0; }
+  }
+
+  /* === Hints === */
+  .hint-bubble {
+    position: fixed;
+    max-width: 280px;
+    padding: 10px 16px;
+    padding-right: 56px;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.4;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 300;
+    animation: hintIn 0.25s ease-out forwards;
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  .hint-bubble.removing {
+    animation: hintOut 0.2s ease-in forwards;
+  }
+  .hint-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 20px;
+    width: 12px;
+    height: 12px;
+    background: rgba(0,0,0,0.8);
+    transform: rotate(45deg);
+    border-radius: 2px;
+  }
+  .hint-buttons {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 2px;
+    pointer-events: auto;
+  }
+  .hint-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+    transition: background 0.15s;
+  }
+  .hint-collapse-btn {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+  }
+  .hint-collapse-btn:hover {
+    background: rgba(255,255,255,0.3);
+  }
+  .hint-delete-btn {
+    background: rgba(239,68,68,0.4);
+    color: #fff;
+  }
+  .hint-delete-btn:hover {
+    background: rgba(239,68,68,0.7);
+  }
+
+  /* Collapsed hint */
+  .hint-collapsed {
+    position: fixed;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(59,130,246,0.85);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 300;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    animation: hintIn 0.2s ease-out forwards;
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  .hint-collapsed:hover {
+    background: rgba(59,130,246,1);
+    transform: scale(1.15);
+  }
+
+  @keyframes hintIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hintOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(8px); }
+  }
+
+  /* === Text overlays === */
+  .text-overlay {
+    position: fixed;
+    pointer-events: none;
+    z-index: 350;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 0 8px rgba(0,0,0,0.4);
+    white-space: nowrap;
+    animation: hintIn 0.2s ease-out forwards;
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  .text-overlay-delete {
+    position: absolute;
+    top: -8px;
+    right: -20px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(239,68,68,0.7);
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .text-overlay:hover .text-overlay-delete {
+    opacity: 1;
+  }
+
+  /* === Draw canvas === */
+  #draw-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+  <div id="layer-draw">
+    <canvas id="draw-canvas"></canvas>
+  </div>
+  <div id="layer-chat"></div>
+  <div id="layer-hints"></div>
+  <div id="layer-texts"></div>
+  <div id="layer-toasts"></div>
+
+  <!-- Ghost cursor SVG -->
+  <svg id="ghost-cursor" viewBox="0 0 24 24" fill="#f97316" stroke="#fff" stroke-width="1">
+    <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+  </svg>
+
+<script>
+// ===================== JS LOGGING =====================
+// Log buffer — can be read from Go via getJSLog()
+var _jsLog = [];
+function jsLog(msg) {
+  var ts = new Date().toISOString().substr(11, 12);
+  var entry = ts + ' ' + msg;
+  _jsLog.push(entry);
+  if (_jsLog.length > 200) _jsLog.shift();
+  // Also use console.log for WebKit inspector
+  console.log('[OVERLAY-JS] ' + msg);
+}
+function getJSLog() { return JSON.stringify(_jsLog); }
+
+jsLog('Script loaded, innerWidth=' + window.innerWidth + ' innerHeight=' + window.innerHeight + ' dpr=' + window.devicePixelRatio);
+
+// ===================== PENDING ACTIONS (JS→Go) =====================
+window._pendingActions = [];
+
+// ===================== TOASTS =====================
+function showToast(text, type, duration) {
+  jsLog('showToast: text="' + text + '" type=' + type + ' dur=' + duration);
+  type = type || 'info';
+  duration = duration || 3000;
+  var container = document.getElementById('layer-toasts');
+  var el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = text;
+  container.appendChild(el);
+  setTimeout(function() {
+    el.classList.add('removing');
+    setTimeout(function() {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 300);
+  }, duration);
+}
+
+// ===================== CURSOR =====================
+var cursorEl = document.getElementById('ghost-cursor');
+
+function showCursor() {
+  jsLog('showCursor called');
+  cursorEl.style.display = 'block';
+}
+
+function hideCursor() {
+  jsLog('hideCursor called');
+  cursorEl.style.display = 'none';
+}
+
+function moveCursor(x, y) {
+  // Don't log every move — too noisy
+  var px = x * window.innerWidth;
+  var py = y * window.innerHeight;
+  cursorEl.style.transform = 'translate(' + px + 'px, ' + py + 'px)';
+  if (cursorEl.style.display === 'none') {
+    cursorEl.style.display = 'block';
+  }
+}
+
+function clickCursor(x, y) {
+  jsLog('clickCursor: x=' + x.toFixed(3) + ' y=' + y.toFixed(3));
+  moveCursor(x, y);
+  var px = x * window.innerWidth;
+  var py = y * window.innerHeight;
+  var ripple = document.createElement('div');
+  ripple.className = 'cursor-ripple';
+  ripple.style.left = px + 'px';
+  ripple.style.top = py + 'px';
+  document.body.appendChild(ripple);
+  setTimeout(function() {
+    if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+  }, 600);
+}
+
+// ===================== HINTS =====================
+var hints = {};
+var hintCounter = 0;
+var allHintsCollapsed = false;
+
+function showHint(id, x, y, text, duration) {
+  jsLog('showHint: id=' + id + ' x=' + x.toFixed(3) + ' y=' + y.toFixed(3) + ' text="' + text + '" dur=' + duration);
+  // Remove existing hint with same id
+  if (hints[id]) {
+    var old = hints[id].el;
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+  }
+
+  hintCounter++;
+  var num = hintCounter;
+
+  var el = document.createElement('div');
+  el.className = 'hint-bubble';
+  el.setAttribute('data-hint-id', id);
+
+  // Text content
+  var textSpan = document.createElement('span');
+  textSpan.className = 'hint-text';
+  textSpan.textContent = text;
+  el.appendChild(textSpan);
+
+  // Buttons container
+  var btns = document.createElement('div');
+  btns.className = 'hint-buttons';
+
+  var collapseBtn = document.createElement('button');
+  collapseBtn.className = 'hint-btn hint-collapse-btn';
+  collapseBtn.textContent = '−';
+  collapseBtn.onclick = function(e) {
+    e.stopPropagation();
+    collapseHint(id);
+    window._pendingActions.push({action: 'collapse', type: 'hint', id: id});
+  };
+  btns.appendChild(collapseBtn);
+
+  var deleteBtn = document.createElement('button');
+  deleteBtn.className = 'hint-btn hint-delete-btn';
+  deleteBtn.textContent = '×';
+  deleteBtn.onclick = function(e) {
+    e.stopPropagation();
+    window._pendingActions.push({action: 'delete', type: 'hint', id: id});
+    hideHint(id);
+  };
+  btns.appendChild(deleteBtn);
+
+  el.appendChild(btns);
+
+  // Position: convert relative to pixels
+  var px = x * window.innerWidth;
+  var py = y * window.innerHeight;
+  el.style.left = Math.max(0, Math.min(px - 20, window.innerWidth - 300)) + 'px';
+  el.style.top = Math.max(0, py - 50) + 'px';
+  document.getElementById('layer-hints').appendChild(el);
+
+  hints[id] = {el: el, x: x, y: y, text: text, num: num, collapsed: false};
+
+  // No auto-hide timer — duration=0 means permanent
+  if (duration > 0) {
+    setTimeout(function() {
+      hideHint(id);
+    }, duration * 1000);
+  }
+}
+
+function hideHint(id) {
+  var h = hints[id];
+  if (!h) return;
+  var el = h.el;
+  if (!el) return;
+  el.classList.add('removing');
+  setTimeout(function() {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    delete hints[id];
+  }, 200);
+}
+
+function clearHints() {
+  for (var id in hints) {
+    var h = hints[id];
+    if (h.el && h.el.parentNode) h.el.parentNode.removeChild(h.el);
+  }
+  hints = {};
+}
+
+function collapseHint(id) {
+  var h = hints[id];
+  if (!h || h.collapsed) return;
+
+  // Remove expanded bubble
+  if (h.el && h.el.parentNode) h.el.parentNode.removeChild(h.el);
+
+  // Create collapsed circle
+  var circle = document.createElement('div');
+  circle.className = 'hint-collapsed';
+  circle.setAttribute('data-hint-id', id);
+  circle.textContent = h.num;
+
+  var px = h.x * window.innerWidth;
+  var py = h.y * window.innerHeight;
+  circle.style.left = Math.max(0, px - 12) + 'px';
+  circle.style.top = Math.max(0, py - 36) + 'px';
+
+  circle.onclick = function(e) {
+    e.stopPropagation();
+    expandHint(id);
+    window._pendingActions.push({action: 'expand', type: 'hint', id: id});
+  };
+
+  document.getElementById('layer-hints').appendChild(circle);
+  h.el = circle;
+  h.collapsed = true;
+}
+
+function expandHint(id) {
+  var h = hints[id];
+  if (!h || !h.collapsed) return;
+
+  // Remove collapsed circle
+  if (h.el && h.el.parentNode) h.el.parentNode.removeChild(h.el);
+
+  // Re-create expanded hint
+  h.collapsed = false;
+  showHint(id, h.x, h.y, h.text, 0);
+  // Restore the same num
+  if (hints[id]) hints[id].num = h.num;
+}
+
+function toggleAllHints() {
+  allHintsCollapsed = !allHintsCollapsed;
+  for (var id in hints) {
+    if (allHintsCollapsed) {
+      if (!hints[id].collapsed) collapseHint(id);
+    } else {
+      if (hints[id].collapsed) expandHint(id);
+    }
+  }
+  // Also toggle text overlays visibility
+  var textLayer = document.getElementById('layer-texts');
+  if (textLayer) {
+    textLayer.style.display = allHintsCollapsed ? 'none' : 'block';
+  }
+}
+
+// ===================== TEXT OVERLAYS =====================
+var textOverlays = {};
+
+function showTextOverlay(id, x, y, text, color, size) {
+  jsLog('showTextOverlay: id=' + id + ' x=' + x.toFixed(3) + ' y=' + y.toFixed(3) + ' text="' + text + '"');
+  // Remove existing
+  if (textOverlays[id]) {
+    var old = textOverlays[id];
+    if (old.parentNode) old.parentNode.removeChild(old);
+  }
+
+  var el = document.createElement('div');
+  el.className = 'text-overlay';
+  el.setAttribute('data-text-id', id);
+  el.style.color = color || '#FFFFFF';
+  el.style.fontSize = (size || 24) + 'px';
+
+  var px = x * window.innerWidth;
+  var py = y * window.innerHeight;
+  el.style.left = px + 'px';
+  el.style.top = py + 'px';
+
+  var textNode = document.createTextNode(text);
+  el.appendChild(textNode);
+
+  // Delete button
+  var delBtn = document.createElement('button');
+  delBtn.className = 'text-overlay-delete';
+  delBtn.textContent = '×';
+  delBtn.onclick = function(e) {
+    e.stopPropagation();
+    window._pendingActions.push({action: 'delete', type: 'text', id: id});
+    hideTextOverlay(id);
+  };
+  el.appendChild(delBtn);
+
+  document.getElementById('layer-texts').appendChild(el);
+  textOverlays[id] = el;
+}
+
+function hideTextOverlay(id) {
+  var el = textOverlays[id];
+  if (!el) return;
+  el.classList.add('removing');
+  setTimeout(function() {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    delete textOverlays[id];
+  }, 200);
+}
+
+function clearTextOverlays() {
+  for (var id in textOverlays) {
+    var el = textOverlays[id];
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+  textOverlays = {};
+}
+
+// ===================== GET RECTS (for Go mouse hit-testing) =====================
+function getHintRects() {
+  var result = {hints: {}, texts: {}};
+  var dpr = window.devicePixelRatio || 1;
+  for (var id in hints) {
+    var h = hints[id];
+    if (h.el) {
+      var r = h.el.getBoundingClientRect();
+      result.hints[id] = {x: r.left * dpr, y: r.top * dpr, w: r.width * dpr, h: r.height * dpr};
+    }
+  }
+  for (var id in textOverlays) {
+    var el = textOverlays[id];
+    if (el) {
+      var r = el.getBoundingClientRect();
+      result.texts[id] = {x: r.left * dpr, y: r.top * dpr, w: r.width * dpr, h: r.height * dpr};
+    }
+  }
+  return JSON.stringify(result);
+}
+
+// ===================== DRAWING =====================
+var canvas = document.getElementById('draw-canvas');
+var ctx = canvas.getContext('2d');
+var strokeHistory = [];
+var currentStroke = null;
+
+function resizeCanvas() {
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var dpr = window.devicePixelRatio || 1;
+  jsLog('resizeCanvas: innerW=' + w + ' innerH=' + h + ' dpr=' + dpr + ' -> canvas ' + (w*dpr) + 'x' + (h*dpr));
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redrawAll();
+}
+// Defer resizeCanvas until layout is ready (WKWebView may report 0x0 initially)
+var canvasInitialized = false;
+function initCanvas() {
+  if (canvasInitialized) return;
+  jsLog('initCanvas: innerW=' + window.innerWidth + ' innerH=' + window.innerHeight + ' readyState=' + document.readyState);
+  if (window.innerWidth > 0 && window.innerHeight > 0) {
+    canvasInitialized = true;
+    resizeCanvas();
+  } else {
+    jsLog('initCanvas: dimensions zero, retrying...');
+    // Use setTimeout as primary retry — rAF may not fire in transparent overlay windows
+    setTimeout(function() {
+      jsLog('initCanvas retry: innerW=' + window.innerWidth + ' innerH=' + window.innerHeight);
+      if (canvasInitialized) return;
+      canvasInitialized = true;
+      resizeCanvas();
+    }, 100);
+  }
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  // Use both rAF and setTimeout — rAF may not fire in transparent/offscreen WebView2 windows
+  requestAnimationFrame(initCanvas);
+  setTimeout(initCanvas, 50);
+} else {
+  document.addEventListener('DOMContentLoaded', function() {
+    requestAnimationFrame(initCanvas);
+    setTimeout(initCanvas, 50);
+  });
+}
+window.addEventListener('resize', resizeCanvas);
+
+function toPixel(x, y) {
+  return [x * window.innerWidth, y * window.innerHeight];
+}
+
+// Pending RAF ID for shape preview optimization
+var pendingRAF = null;
+
+function drawStart(x, y, color, thickness, tool) {
+  jsLog('drawStart: tool=' + tool + ' color=' + color + ' thickness=' + thickness + ' x=' + x.toFixed(3) + ' y=' + y.toFixed(3) + ' canvasW=' + canvas.width + ' canvasH=' + canvas.height);
+  var p = toPixel(x, y);
+  var lineW = Math.max(1, thickness * window.innerWidth);
+  currentStroke = {
+    tool: tool || 'brush',
+    color: color || '#FF0000',
+    thickness: lineW,
+    points: [{x: p[0], y: p[1]}],
+    startX: p[0], startY: p[1]
+  };
+  if (tool === 'brush' || tool === 'eraser') {
+    ctx.beginPath();
+    if (tool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.strokeStyle = tool === 'eraser' ? 'rgba(0,0,0,1)' : (color || '#FF0000');
+    ctx.lineWidth = lineW;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(p[0], p[1]);
+  }
+}
+
+function drawMove(x, y) {
+  if (!currentStroke) return;
+  var p = toPixel(x, y);
+  currentStroke.points.push({x: p[0], y: p[1]});
+  if (currentStroke.tool === 'brush' || currentStroke.tool === 'eraser') {
+    ctx.lineTo(p[0], p[1]);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p[0], p[1]);
+  } else {
+    // Throttle shape preview via requestAnimationFrame for max FPS
+    currentStroke._previewX = p[0];
+    currentStroke._previewY = p[1];
+    if (!pendingRAF) {
+      pendingRAF = requestAnimationFrame(function() {
+        pendingRAF = null;
+        if (!currentStroke) return;
+        redrawAll();
+        drawShape(currentStroke, currentStroke._previewX, currentStroke._previewY);
+      });
+    }
+  }
+}
+
+function drawEnd(x, y) {
+  jsLog('drawEnd: x=' + x.toFixed(3) + ' y=' + y.toFixed(3) + ' hasStroke=' + !!currentStroke + ' historyLen=' + strokeHistory.length);
+  if (!currentStroke) return;
+  if (pendingRAF) {
+    cancelAnimationFrame(pendingRAF);
+    pendingRAF = null;
+  }
+  var p = toPixel(x, y);
+  currentStroke.endX = p[0];
+  currentStroke.endY = p[1];
+  if (currentStroke.tool === 'brush' || currentStroke.tool === 'eraser') {
+    ctx.lineTo(p[0], p[1]);
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  strokeHistory.push(currentStroke);
+  currentStroke = null;
+  redrawAll();
+}
+
+function drawShape(stroke, endX, endY) {
+  ctx.save();
+  ctx.strokeStyle = stroke.color;
+  ctx.lineWidth = stroke.thickness;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.globalCompositeOperation = 'source-over';
+  var sx = stroke.startX, sy = stroke.startY;
+
+  if (stroke.tool === 'line') {
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+  } else if (stroke.tool === 'arrow') {
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    var angle = Math.atan2(endY - sy, endX - sx);
+    var headLen = Math.max(12, stroke.thickness * 4);
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - headLen * Math.cos(angle - 0.4), endY - headLen * Math.sin(angle - 0.4));
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - headLen * Math.cos(angle + 0.4), endY - headLen * Math.sin(angle + 0.4));
+    ctx.stroke();
+  } else if (stroke.tool === 'rect') {
+    ctx.beginPath();
+    ctx.strokeRect(sx, sy, endX - sx, endY - sy);
+  } else if (stroke.tool === 'circle') {
+    var r = Math.sqrt(Math.pow(endX - sx, 2) + Math.pow(endY - sy, 2));
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (stroke.tool === 'oval') {
+    var rx = Math.abs(endX - sx) / 2;
+    var ry = Math.abs(endY - sy) / 2;
+    var cx = sx + (endX - sx) / 2;
+    var cy = sy + (endY - sy) / 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (stroke.tool === 'checkmark') {
+    // Checkmark: V-shape from start to end
+    var w = endX - sx;
+    var h = endY - sy;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + h * 0.5);
+    ctx.lineTo(sx + w * 0.35, sy + h);
+    ctx.lineTo(sx + w, sy);
+    ctx.stroke();
+  } else if (stroke.tool === 'cross') {
+    // X-shape
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(endX, endY);
+    ctx.moveTo(endX, sy);
+    ctx.lineTo(sx, endY);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function redrawAll() {
+  ctx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+  for (var i = 0; i < strokeHistory.length; i++) {
+    var s = strokeHistory[i];
+    if (s.tool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.lineWidth = s.thickness;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (s.points.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(s.points[0].x, s.points[0].y);
+      for (var j = 1; j < s.points.length; j++) {
+        ctx.lineTo(s.points[j].x, s.points[j].y);
+      }
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (s.tool === 'brush') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.thickness;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (s.points.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(s.points[0].x, s.points[0].y);
+      for (var j = 1; j < s.points.length; j++) {
+        ctx.lineTo(s.points[j].x, s.points[j].y);
+      }
+      ctx.stroke();
+    } else {
+      drawShape(s, s.endX, s.endY);
+    }
+  }
+}
+
+function drawClear() {
+  jsLog('drawClear: had ' + strokeHistory.length + ' strokes');
+  strokeHistory = [];
+  currentStroke = null;
+  ctx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+}
+
+function drawUndo() {
+  jsLog('drawUndo: historyLen=' + strokeHistory.length);
+  if (strokeHistory.length === 0) return;
+  strokeHistory.pop();
+  redrawAll();
+}
+
+// Auto-test: show a startup toast to confirm overlay rendering works
+setTimeout(function() {
+  jsLog('AUTO-TEST: showing startup toast. body children=' + document.body.children.length +
+    ' cursorEl=' + !!cursorEl + ' canvas=' + !!canvas +
+    ' canvasW=' + canvas.width + ' canvasH=' + canvas.height);
+  showToast("Overlay активен", "success", 3000);
+}, 500);
+
+// DOM state at load
+document.addEventListener('DOMContentLoaded', function() {
+  jsLog('DOMContentLoaded fired');
+});
+window.addEventListener('load', function() {
+  jsLog('window.load fired, innerW=' + window.innerWidth + ' innerH=' + window.innerHeight);
+});
+</script>
+</body>
+</html>

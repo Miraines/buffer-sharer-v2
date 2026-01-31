@@ -10,7 +10,7 @@
     RestartApp,
     GetDetailedPermissionStatus,
     StartPermissionPolling
-  } from '../../wailsjs/go/main/App';
+  } from '../../wailsjs/go/app/App';
 
   export let show = false;
   export let permissions: Array<{

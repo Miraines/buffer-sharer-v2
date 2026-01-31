@@ -7,10 +7,12 @@ toolchain go1.24.5
 require (
 	github.com/go-vgo/robotgo v1.0.0
 	github.com/spf13/viper v1.21.0
+	github.com/wailsapp/go-webview2 v1.0.22
 	github.com/wailsapp/wails/v2 v2.11.0
 	go.uber.org/zap v1.27.1
 	golang.design/x/clipboard v0.7.1
 	golang.design/x/hotkey v0.4.1
+	golang.org/x/sys v0.38.0
 )
 
 require (
@@ -62,7 +64,6 @@ require (
 	github.com/vcaesar/keycode v0.10.1 // indirect
 	github.com/vcaesar/screenshot v0.11.1 // indirect
 	github.com/vcaesar/tt v0.20.1 // indirect
-	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
@@ -74,7 +75,6 @@ require (
 	golang.org/x/image v0.33.0 // indirect
 	golang.org/x/mobile v0.0.0-20250606033058-a2a15c67f36f // indirect
 	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 )
 

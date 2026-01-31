@@ -94,7 +94,7 @@ void SetWindowVisibleToScreenCapture(NSWindow *window) {
     }
 }
 
-// SetAllWindowsInvisible hides all app windows from screen capture
+// SetAllWindowsInvisible hides all app windows from screen capture (including overlay)
 void SetAllWindowsInvisible() {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSArray *windows = [[NSApplication sharedApplication] windows];
@@ -138,6 +138,9 @@ func NewManager() *Manager {
 		enabled: false,
 	}
 }
+
+// SetExcludedWindowNumber is kept for API compatibility but is a no-op (overlay is now also invisible)
+func (m *Manager) SetExcludedWindowNumber(wn int) {}
 
 // SetEnabled enables or disables invisibility mode
 func (m *Manager) SetEnabled(enabled bool) {

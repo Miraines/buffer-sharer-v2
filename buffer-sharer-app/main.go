@@ -8,6 +8,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+
+	application "buffer-sharer-app/internal/app"
 )
 
 //go:embed all:frontend/dist
@@ -15,7 +17,7 @@ var assets embed.FS
 
 func main() {
 	// Create an instance of the app structure
-	app := NewApp()
+	a := application.NewApp()
 
 	// Create application with options
 	err := wails.Run(&options.App{
@@ -33,10 +35,10 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		OnStartup:  app.startup,
-		OnShutdown: app.shutdown,
+		OnStartup:  a.Startup,
+		OnShutdown: a.Shutdown,
 		Bind: []interface{}{
-			app,
+			a,
 		},
 		// Mac specific options
 		Mac: &mac.Options{
