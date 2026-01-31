@@ -99,8 +99,12 @@ void CreateOverlayWindow(const char *htmlContent) {
 
 		if (overlayWebView == nil) {
 			NSLog(@"[OVERLAY] ERROR: Failed to create WKWebView!");
+			[config release];
+			free(htmlCopy);
 			return;
 		}
+		// config is retained by WKWebView internally; release our ownership
+		[config release];
 
 		NSLog(@"[OVERLAY] WKWebView created, frame: %.0fx%.0f", cvBounds.size.width, cvBounds.size.height);
 
@@ -366,6 +370,12 @@ type Manager struct {
 
 	reorderStop   chan struct{}
 
+	// WaitGroup for background goroutines so Destroy can wait
+	wg sync.WaitGroup
+
+	// Mutex to serialize EvalJSWithResult calls (shared C semaphore/buffer)
+	evalResultMu sync.Mutex
+
 	// Action callback
 	onAction func(action string, actionType string, id string)
 }
@@ -386,7 +396,9 @@ func NewManager() *Manager {
 
 	// Periodically re-order overlay to stay on top
 	m.reorderStop = make(chan struct{})
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -480,24 +492,31 @@ func (m *Manager) DiagnosticCheck() (visible bool, jsWorks bool, windowInfo stri
 // Destroy closes and cleans up the overlay window
 func (m *Manager) Destroy() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.created {
-		// Stop re-order goroutine
-		if m.reorderStop != nil {
-			close(m.reorderStop)
-			m.reorderStop = nil
-		}
-		// Stop hint interaction timer
-		if m.hintTimer != nil {
-			m.hintTimer.Stop()
-		}
-		if m.hintTimerStop != nil {
-			close(m.hintTimerStop)
-		}
-		C.DestroyOverlayWindow()
-		m.created = false
-		m.visible = false
+	if !m.created {
+		m.mu.Unlock()
+		return
 	}
+	// Stop re-order goroutine
+	if m.reorderStop != nil {
+		close(m.reorderStop)
+		m.reorderStop = nil
+	}
+	// Stop hint interaction timer
+	if m.hintTimer != nil {
+		m.hintTimer.Stop()
+	}
+	if m.hintTimerStop != nil {
+		close(m.hintTimerStop)
+		m.hintTimerStop = nil
+	}
+	m.created = false
+	m.visible = false
+	m.mu.Unlock()
+
+	// Wait for background goroutines to finish before destroying the window
+	m.wg.Wait()
+
+	C.DestroyOverlayWindow()
 }
 
 // IsSupported returns true on macOS
@@ -542,7 +561,9 @@ func (m *Manager) GetScreenSize() (w, h float64) {
 	return float64(cw), float64(ch)
 }
 
-// EvalJSWithResult executes JavaScript and returns the result string
+// EvalJSWithResult executes JavaScript and returns the result string.
+// Serialized with evalResultMu because the C layer uses a single shared
+// jsResultBuffer + semaphore — concurrent calls would race on that buffer.
 func (m *Manager) EvalJSWithResult(js string) string {
 	m.mu.RLock()
 	created := m.created
@@ -550,6 +571,8 @@ func (m *Manager) EvalJSWithResult(js string) string {
 	if !created {
 		return ""
 	}
+	m.evalResultMu.Lock()
+	defer m.evalResultMu.Unlock()
 	cJS := C.CString(js)
 	defer C.free(unsafe.Pointer(cJS))
 	C.OverlayEvalJSWithResult(cJS)
@@ -608,7 +631,9 @@ func (m *Manager) StartHintInteraction() {
 	// Separate ticker for JS→Go action polling (200ms)
 	actionTicker := time.NewTicker(200 * time.Millisecond)
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer actionTicker.Stop()
 		for {
 			select {

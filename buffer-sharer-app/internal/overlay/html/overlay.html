@@ -535,19 +535,20 @@ function clearTextOverlays() {
 // ===================== GET RECTS (for Go mouse hit-testing) =====================
 function getHintRects() {
   var result = {hints: {}, texts: {}};
-  var dpr = window.devicePixelRatio || 1;
+  // Return CSS pixel coordinates (no dpr multiplication).
+  // Go's GetMouseLocation returns coords in the same CSS/logical pixel space.
   for (var id in hints) {
     var h = hints[id];
     if (h.el) {
       var r = h.el.getBoundingClientRect();
-      result.hints[id] = {x: r.left * dpr, y: r.top * dpr, w: r.width * dpr, h: r.height * dpr};
+      result.hints[id] = {x: r.left, y: r.top, w: r.width, h: r.height};
     }
   }
   for (var id in textOverlays) {
     var el = textOverlays[id];
     if (el) {
       var r = el.getBoundingClientRect();
-      result.texts[id] = {x: r.left * dpr, y: r.top * dpr, w: r.width * dpr, h: r.height * dpr};
+      result.texts[id] = {x: r.left, y: r.top, w: r.width, h: r.height};
     }
   }
   return JSON.stringify(result);
@@ -676,6 +677,11 @@ function drawEnd(x, y) {
     ctx.globalCompositeOperation = 'source-over';
   }
   strokeHistory.push(currentStroke);
+  // Limit stroke history to prevent unbounded memory growth
+  if (strokeHistory.length > 500) {
+    strokeHistory = strokeHistory.slice(-400);
+    jsLog('strokeHistory trimmed to 400 (was >500)');
+  }
   currentStroke = null;
   redrawAll();
 }

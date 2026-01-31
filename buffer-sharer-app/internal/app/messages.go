@@ -4,12 +4,21 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"buffer-sharer-app/internal/network"
 )
+
+// safeFloat replaces NaN/Infinity with 0 to prevent invalid JS output from %f formatting
+func safeFloat(f float64) float64 {
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return 0
+	}
+	return f
+}
 
 // handleMessage handles incoming network messages
 func (a *App) handleMessage(msg *network.Message) {
@@ -107,7 +116,7 @@ func (a *App) handleMessage(msg *network.Message) {
 			a.log("error", "[OVERLAY] overlayManager is nil for cursor_move!")
 			return
 		}
-		a.overlayManager.EvalJS(fmt.Sprintf(`moveCursor(%f, %f)`, payload.X, payload.Y))
+		a.overlayManager.EvalJS(fmt.Sprintf(`moveCursor(%f, %f)`, safeFloat(payload.X), safeFloat(payload.Y)))
 
 	case network.TypeCursorClick:
 		var payload network.CursorPayload
@@ -116,7 +125,7 @@ func (a *App) handleMessage(msg *network.Message) {
 			return
 		}
 		a.log("info", "[OVERLAY] Клик курсора: x=%.3f y=%.3f overlayNil=%v", payload.X, payload.Y, a.overlayManager == nil)
-		a.overlayManager.EvalJS(fmt.Sprintf(`clickCursor(%f, %f)`, payload.X, payload.Y))
+		a.overlayManager.EvalJS(fmt.Sprintf(`clickCursor(%f, %f)`, safeFloat(payload.X), safeFloat(payload.Y)))
 
 	case network.TypeCursorShow:
 		a.log("info", "[OVERLAY] Курсор контроллера активирован, overlayNil=%v", a.overlayManager == nil)
@@ -134,7 +143,7 @@ func (a *App) handleMessage(msg *network.Message) {
 			return
 		}
 		js := fmt.Sprintf(`showHint(%s, %f, %f, %s, %d)`,
-			jsString(payload.ID), payload.X, payload.Y, jsString(payload.Text), payload.Duration)
+			jsString(payload.ID), safeFloat(payload.X), safeFloat(payload.Y), jsString(payload.Text), payload.Duration)
 		a.log("info", "[OVERLAY] Подсказка: id=%s text=%s pos=(%.2f,%.2f) js=%s", payload.ID, truncate(payload.Text, 30), payload.X, payload.Y, js)
 		a.overlayManager.EvalJS(js)
 		a.overlayManager.SyncHintRects()
@@ -160,7 +169,7 @@ func (a *App) handleMessage(msg *network.Message) {
 		}
 		a.log("info", "[OVERLAY] Текстовая метка: id=%s text=%s pos=(%.2f,%.2f)", payload.ID, truncate(payload.Text, 30), payload.X, payload.Y)
 		a.overlayManager.EvalJS(fmt.Sprintf(`showTextOverlay(%s, %f, %f, %s, %s, %f)`,
-			jsString(payload.ID), payload.X, payload.Y, jsString(payload.Text), jsString(payload.Color), payload.Size))
+			jsString(payload.ID), safeFloat(payload.X), safeFloat(payload.Y), jsString(payload.Text), jsString(payload.Color), safeFloat(payload.Size)))
 		a.overlayManager.SyncHintRects()
 
 	case network.TypeTextOverlayClear:
@@ -210,7 +219,7 @@ func (a *App) handleMessage(msg *network.Message) {
 			return
 		}
 		js := fmt.Sprintf(`drawStart(%f, %f, %s, %f, %s)`,
-			payload.X, payload.Y, jsString(payload.Color), payload.Thickness, jsString(payload.Tool))
+			safeFloat(payload.X), safeFloat(payload.Y), jsString(payload.Color), safeFloat(payload.Thickness), jsString(payload.Tool))
 		a.log("info", "[OVERLAY] Начало рисования: tool=%s color=%s thickness=%.4f pos=(%.3f,%.3f) js=%s", payload.Tool, payload.Color, payload.Thickness, payload.X, payload.Y, js)
 		a.overlayManager.EvalJS(js)
 		a.showOverlayToast("Рисование на вашем экране", "info")
@@ -220,7 +229,7 @@ func (a *App) handleMessage(msg *network.Message) {
 		if err := msg.ParsePayload(&payload); err != nil {
 			return
 		}
-		a.overlayManager.EvalJS(fmt.Sprintf(`drawMove(%f, %f)`, payload.X, payload.Y))
+		a.overlayManager.EvalJS(fmt.Sprintf(`drawMove(%f, %f)`, safeFloat(payload.X), safeFloat(payload.Y)))
 
 	case network.TypeDrawEnd:
 		var payload network.DrawEndPayload
@@ -229,7 +238,7 @@ func (a *App) handleMessage(msg *network.Message) {
 			return
 		}
 		a.log("info", "[OVERLAY] Конец рисования: pos=(%.3f,%.3f)", payload.X, payload.Y)
-		a.overlayManager.EvalJS(fmt.Sprintf(`drawEnd(%f, %f)`, payload.X, payload.Y))
+		a.overlayManager.EvalJS(fmt.Sprintf(`drawEnd(%f, %f)`, safeFloat(payload.X), safeFloat(payload.Y)))
 
 	case network.TypeDrawClear:
 		a.log("info", "[OVERLAY] Очистка всех рисунков")

@@ -45,6 +45,7 @@ var (
 	procSetLayeredWindowAttributes = user32.NewProc("SetLayeredWindowAttributes")
 	procGetCursorPos               = user32.NewProc("GetCursorPos")
 	procGetSystemMetrics           = user32.NewProc("GetSystemMetrics")
+	procGetDpiForWindow            = user32.NewProc("GetDpiForWindow")
 	procGetModuleHandleW           = kernel32.NewProc("GetModuleHandleW")
 	procGetCurrentThreadId         = kernel32.NewProc("GetCurrentThreadId")
 	procDwmExtendFrameIntoClient   = dwmapi.NewProc("DwmExtendFrameIntoClientArea")
@@ -172,6 +173,9 @@ type Manager struct {
 	resultChans   map[string]chan string
 	resultCounter uint64
 
+	// DPI scale (cached on overlay thread init, read from other goroutines)
+	dpiScale float64
+
 	// Hint interaction
 	hintRects     map[string]HintRect
 	textRects     map[string]HintRect
@@ -181,6 +185,9 @@ type Manager struct {
 
 	// Re-order goroutine
 	reorderStop chan struct{}
+
+	// WaitGroup for background goroutines so Destroy can wait for them
+	wg sync.WaitGroup
 
 	// Action callback (from JS polling)
 	onAction func(action string, actionType string, id string)
@@ -216,7 +223,9 @@ func NewManager() *Manager {
 
 	// Periodically re-order overlay to stay on top (same as macOS)
 	m.reorderStop = make(chan struct{})
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -316,7 +325,8 @@ func (m *Manager) overlayThread() {
 
 	log.Println("[OVERLAY] Calling Chromium.Embed()...")
 	if !chromium.Embed(hwnd) {
-		log.Println("[OVERLAY] ERROR: Chromium.Embed() returned false!")
+		log.Println("[OVERLAY] ERROR: Chromium.Embed() returned false! Destroying orphan window.")
+		procDestroyWindow.Call(hwnd)
 		close(m.ready)
 		return
 	}
@@ -353,10 +363,19 @@ func (m *Manager) overlayThread() {
 	chromium.NavigateToString(overlayHTML)
 	log.Println("[OVERLAY] NavigateToString called")
 
-	// 15. Store state
+	// 15. Cache DPI scale for coordinate conversion (GetCursorPos → CSS pixels)
+	dpi, _, _ := procGetDpiForWindow.Call(hwnd)
+	if dpi == 0 {
+		dpi = 96 // fallback: 100% scaling
+	}
+	dpiScale := float64(dpi) / 96.0
+	log.Printf("[OVERLAY] DPI=%d scale=%.2f", dpi, dpiScale)
+
+	// 16. Store state
 	atomic.StoreUintptr(&m.hwnd, hwnd)
 	m.mu.Lock()
 	m.chromium = chromium
+	m.dpiScale = dpiScale
 	m.created = true
 	m.visible = true
 	m.mu.Unlock()
@@ -545,10 +564,16 @@ func (m *Manager) handleWebMessage(message string) {
 		m.resultMu.Unlock()
 
 		if ok {
-			log.Printf("[OVERLAY-MSG] Delivering result for id=%s len=%d", parsed.ID, len(parsed.Result))
-			ch <- parsed.Result
+			// Non-blocking send: if caller already timed out, the channel buffer (size 1)
+			// absorbs the value and it gets GC'd. No goroutine leak or panic.
+			select {
+			case ch <- parsed.Result:
+				log.Printf("[OVERLAY-MSG] Delivered result for id=%s len=%d", parsed.ID, len(parsed.Result))
+			default:
+				log.Printf("[OVERLAY-MSG] Result for id=%s dropped (caller timed out)", parsed.ID)
+			}
 		} else {
-			log.Printf("[OVERLAY-MSG] No waiting channel for eval_result id=%s (timeout?)", parsed.ID)
+			log.Printf("[OVERLAY-MSG] No waiting channel for eval_result id=%s (already timed out)", parsed.ID)
 		}
 	} else {
 		log.Printf("[OVERLAY-MSG] Unknown message type: %s", parsed.Type)
@@ -670,28 +695,46 @@ func (m *Manager) EvalJSWithResult(js string) string {
 
 func (m *Manager) Destroy() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.created {
-		log.Println("[OVERLAY] Destroy() called")
-
-		// Stop re-order goroutine
-		if m.reorderStop != nil {
-			close(m.reorderStop)
-			m.reorderStop = nil
-		}
-		// Stop hint interaction timer
-		if m.hintTimer != nil {
-			m.hintTimer.Stop()
-		}
-		if m.hintTimerStop != nil {
-			close(m.hintTimerStop)
-			m.hintTimerStop = nil
-		}
-
-		m.postToOverlay(_WM_OVERLAY_DESTROY, 0, 0)
-		m.created = false
-		m.visible = false
+	if !m.created {
+		m.mu.Unlock()
+		return
 	}
+	log.Println("[OVERLAY] Destroy() called")
+
+	// Stop re-order goroutine
+	if m.reorderStop != nil {
+		close(m.reorderStop)
+		m.reorderStop = nil
+	}
+	// Stop hint interaction timer
+	if m.hintTimer != nil {
+		m.hintTimer.Stop()
+	}
+	if m.hintTimerStop != nil {
+		close(m.hintTimerStop)
+		m.hintTimerStop = nil
+	}
+
+	m.created = false
+	m.visible = false
+	m.mu.Unlock()
+
+	// Wait for background goroutines (reorder, hint interaction) to finish
+	m.wg.Wait()
+
+	// Cleanup eval queues to prevent leaks
+	m.evalMu.Lock()
+	m.evalQueue = make(map[uint64]string)
+	m.evalMu.Unlock()
+
+	m.resultMu.Lock()
+	for id, ch := range m.resultChans {
+		close(ch)
+		delete(m.resultChans, id)
+	}
+	m.resultMu.Unlock()
+
+	m.postToOverlay(_WM_OVERLAY_DESTROY, 0, 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -738,7 +781,13 @@ func (m *Manager) SetIgnoresMouseEvents(ignores bool) {
 func (m *Manager) GetMouseLocation() (x, y float64) {
 	var pt _POINT
 	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
-	return float64(pt.X), float64(pt.Y)
+	// GetCursorPos returns physical pixels; divide by DPI scale to get CSS pixels
+	// (overlay HTML coordinates are in CSS pixels)
+	scale := m.dpiScale
+	if scale < 1.0 {
+		scale = 1.0
+	}
+	return float64(pt.X) / scale, float64(pt.Y) / scale
 }
 
 // ---------------------------------------------------------------------------
@@ -856,7 +905,9 @@ func (m *Manager) StartHintInteraction() {
 	// Separate ticker for JS→Go action polling (200ms)
 	actionTicker := time.NewTicker(200 * time.Millisecond)
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer actionTicker.Stop()
 		for {
 			select {
